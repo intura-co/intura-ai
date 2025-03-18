@@ -1,0 +1,100 @@
+import requests, json
+from datetime import datetime
+from uuid import uuid4
+
+from intura_ai.client.config import InturaConfig
+
+class InturaFetch:
+    _endpoint_check_api_key         = "external/validate-api-key"
+    _endpoint_check_experiment_id   = "external/validate-experiment"
+    _endpoint_get_detail_experiment = "external/experiment/detail"
+    _endpoint_track_reward          = "ai/track"
+    def __init__(self, api_key):
+        _config = InturaConfig()
+        self._api_host      = _config.get("api_host", "https://intura-be-server-stg-566556985624.asia-southeast2.run.app")
+        self._api_version   = _config.get("api_version", "v1")
+        self._headers       = {
+            'x-request-id': str(uuid4()),
+            'x-timestamp': str(datetime.now().timestamp() * 1000),
+            'x-api-key': api_key,
+            'Content-Type': 'application/json',
+        }
+    
+    def check_api_key(self):
+        endpoint = "/".join([self._api_host, self._api_version, self._endpoint_check_api_key])
+        resp = requests.get(endpoint, headers=self._headers)
+        if resp.status_code == 200:
+            return True
+        else:
+            return False
+        
+    def check_experiment_id(self, experiment_id):
+        endpoint = "/".join([self._api_host, self._api_version, self._endpoint_check_experiment_id])
+        endpoint = endpoint + f"?experiment_id={experiment_id}"
+        resp = requests.get(endpoint, headers=self._headers)
+        if resp.status_code == 200:
+            return True
+        else:
+            return False
+    
+    def get_experiment_detail(self, experiment_id):
+        endpoint = "/".join([self._api_host, self._api_version, self._endpoint_get_detail_experiment])
+        endpoint = endpoint + f"?experiment_id={experiment_id}"
+        resp = requests.get(endpoint, headers=self._headers)
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            return None
+        
+    def insert_chat_usage(self, values):
+        request_body = {
+            "body": {
+                "event_name": "CHAT_MODEL_USAGE",
+                "event_value": values,
+                "attributes": {},
+                "prediction_id": str(uuid4())
+            },
+            "reward_type": "RESERVED_REWARD",
+            "reward_category": "CHAT_USAGE"
+        }
+        endpoint = "/".join([self._api_host, self._api_version, self._endpoint_track_reward])
+        resp = requests.post(endpoint, json=request_body, headers=self._headers)
+        if resp.status_code == 200:
+            return True
+        else:
+            return False
+        
+    def insert_chat_output(self, values):
+        request_body = {
+            "body": {
+                "event_name": "CHAT_MODEL_OUTPUT",
+                "event_value": values,
+                "attributes": {},
+                "prediction_id": str(uuid4())
+            },
+            "reward_type": "RESERVED_REWARD",
+            "reward_category": "CHAT_LOG"
+        }
+        endpoint = "/".join([self._api_host, self._api_version, self._endpoint_track_reward])
+        resp = requests.post(endpoint, json=request_body, headers=self._headers)
+        if resp.status_code == 200:
+            return True
+        else:
+            return False
+    def insert_chat_input(self, values):
+        request_body = {
+            "body": {
+                "event_name": "CHAT_MODEL_INPUT",
+                "event_value": values,
+                "attributes": {},
+                "prediction_id": str(uuid4())
+            },
+            "reward_type": "RESERVED_REWARD",
+            "reward_category": "CHAT_LOG"
+        }
+        endpoint = "/".join([self._api_host, self._api_version, self._endpoint_track_reward])
+        resp = requests.post(endpoint, json=request_body, headers=self._headers)
+        if resp.status_code == 200:
+            return True
+        else:
+            return False

@@ -1,0 +1,3 @@
+api_host: "https://intura-be-server-stg-566556985624.asia-southeast2.run.app"
+api_version: "v1"
+debug: false

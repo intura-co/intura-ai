@@ -1,0 +1,33 @@
+# pyproject.toml (Recommended)
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "intura-ai"  # Replace with your package name
+version = "0.0.3.2"  # Initial version
+authors = [
+    { name = "Intura", email = "hello@intura.co" },
+]
+description = "Intelligent Research and Experimentation AI for LLM experimentation production."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License", # Replace with your license
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests>=2.26.0",
+    "langchain>=0.3.13",
+    "langchain-community>=0.3.13",
+    "langchain-deepseek>=0.1.2",
+    "langchain-anthropic>=0.3.8",
+    "langchain-openai>=0.3.7",
+    "langchain-ollama>=0.2.3",
+    "pydantic==2.9.2"
+]
+
+[project.urls]
+Homepage = "https://github.com/intura-co/intura-ai" #Replace
+"Bug Tracker" = "https://github.com/intura-co/intura-ai/issues" #Replace
