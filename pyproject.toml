@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "intura-ai"  # Replace with your package name
-version = "0.0.3.2"  # Initial version
+version = "0.0.3.3"  # Initial version
 authors = [
     { name = "Intura", email = "hello@intura.co" },
 ]

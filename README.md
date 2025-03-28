@@ -33,13 +33,6 @@ from intura_ai.client import intura_initialization
 
 INTURA_API_KEY = "..."
 intura_initialization(INTURA_API_KEY)
-
-os.environ["GOOGLE_API_KEY"] = "..."
-os.environ["ANTHROPIC_API_KEY"] = "..."
-os.environ["DEEPSEEK_API_KEY"] = "..."
-os.environ["OPENAI_API_KEY"] = "..."
-os.environ["XXX_API_KEY"] = "..."
-
 ```
 
 ### Experiment Prediction
@@ -50,9 +43,20 @@ from intura_ai.experiments import ChatModelExperiment
 
 EXPERIMENT_ID = "..."
 client = ChatModelExperiment(EXPERIMENT_ID)
-llm, messages = client.build()
-messages.append(('human', 'give me today quote for programmer'))
-llm.invoke(messages)
+
+choiced_model, model_config, chat_prompts = client.build(
+    features={
+        "user_id": "Rama12345", 
+        "membership": "FREE", 
+        "employment_type": "FULL_TIME",
+        "feature_x": "your custom features"
+    }
+)
+chat_prompts.append(('human', 'give me today quote for programmer'))
+
+print(client.choiced_model) # Your choiced model for instance: claude-3-5-sonnet-20240620
+model = choiced_model(**model_config, api_key="<YOUR_API_KEY | Set by Environment>")
+model.invoke(chat_prompts)
 ```
 
 ### Usage Tracking Callback

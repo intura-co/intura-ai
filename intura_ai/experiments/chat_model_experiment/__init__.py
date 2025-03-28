@@ -1,11 +1,13 @@
-import os
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_anthropic import ChatAnthropic
-from langchain_deepseek import ChatDeepSeek
-from langchain_openai import ChatOpenAI
-from langchain_ollama.chat_models import ChatOllama
-from intura_ai.client import get_intura_client
+from uuid import uuid4
+from intura_ai.libs.wrappers.langchain_chat_model import (
+    InturaChatOpenAI,
+    InturaChatAnthropic,
+    InturaChatDeepSeek,
+    InturaChatGoogleGenerativeAI
+)
 from intura_ai.callbacks import UsageTrackCallback
+from intura_ai.client import get_intura_client
+
 class ChatModelExperiment:
     def __init__(self, experiment_id=None):
         self._initialized = False
@@ -13,62 +15,40 @@ class ChatModelExperiment:
         if self._intura_api:
             if self._intura_api.check_experiment_id(experiment_id=experiment_id):
                 self._experiment_id = experiment_id
-                resp = self._intura_api.get_experiment_detail(self._experiment_id)
-                self._data = resp["data"]
                 self._initialized = True
                 self._usage_callback = UsageTrackCallback(experiment_id=experiment_id)
                 
     @property
-    def treatment(self):
-        return self._data["treatment_id"]
-    
-    def build(self, api_key=None):
+    def choiced_model(self):
+        try:
+            return self._data["model_configuration"]["model"]
+        except:
+            return None
+
+    def build(self, session_id=None, features={}):
         if self._initialized:
+            resp = self._intura_api.get_experiment_detail(self._experiment_id, features=features)
+            self._data = resp["data"]
             if self._data["model_provider"] == "Google":
-                if not api_key:
-                    api_key = os.getenv("GOOGLE_API_KEY")
-                model = ChatGoogleGenerativeAI(
-                    api_key=api_key,
-                    max_retries=0,
-                    callbacks=[self._usage_callback],
-                    **self._data["model_configuration"]
-                )
+                model = InturaChatGoogleGenerativeAI
             elif self._data["model_provider"] == "Anthropic":
-                if not api_key:
-                    api_key = os.getenv("ANTHROPIC_API_KEY")
-                model = ChatAnthropic(
-                    api_key=api_key,
-                    max_retries=0,
-                    callbacks=[self._usage_callback],
-                    **self._data["model_configuration"]
-                )
+                model = InturaChatAnthropic
             elif self._data["model_provider"] == "Deepseek":
-                if not api_key:
-                    api_key = os.getenv("DEEPSEEK_API_KEY")
-                model = ChatDeepSeek(
-                    api_key=api_key,
-                    max_retries=0,
-                    callbacks=[self._usage_callback],
-                    **self._data["model_configuration"]
-                )
+                model = InturaChatDeepSeek
             elif self._data["model_provider"] == "OpenAI":
-                if not api_key:
-                    api_key = os.getenv("OPENAI_API_KEY")
-                model = ChatOpenAI(
-                    api_key=api_key,
-                    max_retries=0,
-                    callbacks=[self._usage_callback],
-                    **self._data["model_configuration"]
-                )
-            elif self._data["model_provider"] == "OnPremise":
-                model = ChatOllama(
-                    max_retries=0,
-                    callbacks=[self._usage_callback],
-                    **self._data["model_configuration"]
-                )
+                model = InturaChatOpenAI
             else:
                 raise NotImplementedError("Model not implemented")
-            messages = [("system", f"{prompt['name']} {prompt['value']}") for prompt in self._data["prompts"]]
-            return model, messages
+            chat_templates = [("system", f"{prompt['name']} {prompt['value']}") for prompt in self._data["prompts"]]
+            return model, {
+                **self._data["model_configuration"],
+                "callbacks": [self._usage_callback],
+                "metadata": {
+                    "experiment_id": self._experiment_id,
+                    "treatment_id": self._data["treatment_id"],
+                    "treatment_name": self._data["treatment_name"],
+                    "session_id": session_id or str(uuid4())
+                }
+            }, chat_templates
         else:
             raise ValueError("Need to initialized first")
