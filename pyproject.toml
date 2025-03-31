@@ -5,16 +5,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "intura-ai"  # Replace with your package name
-version = "0.0.3.3"  # Initial version
+version = "0.0.3.12"  # Initial version
 authors = [
-    { name = "Intura", email = "hello@intura.co" },
+    { name = "Intura", email = "developer@intura.co" },
 ]
 description = "Intelligent Research and Experimentation AI for LLM experimentation production."
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License", # Replace with your license
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
@@ -29,5 +29,5 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/intura-co/intura-ai" #Replace
-"Bug Tracker" = "https://github.com/intura-co/intura-ai/issues" #Replace
+Homepage = "https://github.com/intura-co/intura-ai"
+"Bug Tracker" = "https://github.com/intura-co/intura-ai/issues"

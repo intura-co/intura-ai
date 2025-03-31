@@ -10,8 +10,6 @@
 
 ## Features
 
-* **Callbacks:**
-    * `UsageTrackCallback`: Log LLM usage details for analysis and monitoring.
 * **Experiment Prediction:**
     * `ChatModelExperiment`: Facilitates the selection and execution of LangChain models based on experiment configurations.
 * **LangChain Compatibility:**
@@ -25,16 +23,6 @@ pip install intura-ai
 
 ## Usage
 
-### Initialization
-Before using `intura-ai`, you need to initialize the client with your API key.
-```python
-import os
-from intura_ai.client import intura_initialization
-
-INTURA_API_KEY = "..."
-intura_initialization(INTURA_API_KEY)
-```
-
 ### Experiment Prediction
 Use `ChatModelExperiment` to fetch and execute pre-configured LangChain models.
 
@@ -42,9 +30,13 @@ Use `ChatModelExperiment` to fetch and execute pre-configured LangChain models.
 from intura_ai.experiments import ChatModelExperiment
 
 EXPERIMENT_ID = "..."
-client = ChatModelExperiment(EXPERIMENT_ID)
+INTURA_API_KEY = "..."
+client = ChatModelExperiment(
+    intura_api_key=INTURA_API_KEY
+)
 
 choiced_model, model_config, chat_prompts = client.build(
+    experiment_id=EXPERIMENT_ID,
     features={
         "user_id": "Rama12345", 
         "membership": "FREE", 
@@ -55,31 +47,24 @@ choiced_model, model_config, chat_prompts = client.build(
 chat_prompts.append(('human', 'give me today quote for programmer'))
 
 print(client.choiced_model) # Your choiced model for instance: claude-3-5-sonnet-20240620
-model = choiced_model(**model_config, api_key="<YOUR_API_KEY | Set by Environment>")
+
+# Set api_key as environment 
+import os
+
+os.environ["GOOGLE_API_KEY"] = "xxx"
+os.environ["ANTHROPIC_API_KEY"] = "xxx"
+os.environ["DEEPSEEK_API_KEY"] = "xxx"
+os.environ["OPENAI_API_KEY"] = "xxx"
+
+model = choiced_model(**model_config)
+
+# Or set api_key as params
+
+model = choiced_model(**model_config, api_key="<YOUR_API_KEY>")
+
+# Inference
+
 model.invoke(chat_prompts)
-```
-
-### Usage Tracking Callback
-Integrate `UsageTrackCallback` to log LLM usage during execution.
-
-```python
-from intura_ai.callbacks import UsageTrackCallback
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.schema import HumanMessage
-
-EXPERIMENT_ID = "..."
-llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-pro",
-    max_tokens=300,
-    timeout=None,
-    max_retries=2,
-    callbacks=[
-        UsageTrackCallback(EXPERIMENT_ID)
-    ]
-)
-
-messages = [HumanMessage(content="What is the capital of France?")]
-llm.invoke(messages)
 ```
 
 ## Contributing

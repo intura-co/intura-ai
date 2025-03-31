@@ -15,7 +15,6 @@ class InturaConfig:
             data = pkg_resources.read_text('intura_ai', config_file)
             self.data = yaml.safe_load(data)
         except FileNotFoundError:
-            print(f"Config file not found: {config_file}")
             self.data = {}
 
     def get(self, key, default=None):

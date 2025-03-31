@@ -1,7 +1,6 @@
-import requests, json
+import requests, os
 from datetime import datetime
 from uuid import uuid4
-from intura_ai.client.config import InturaConfig
 from intura_ai.shared.variables.api_host import INTURA_API_HOST
 
 class InturaFetch:
@@ -9,20 +8,29 @@ class InturaFetch:
     _endpoint_check_experiment_id   = "external/validate-experiment"
     _endpoint_get_detail_experiment = "external/experiment/detail"
     _endpoint_insert_inference      = "external/insert/inference"
-
     _endpoint_track_reward          = "ai/track"
-    def __init__(self, api_key):
-        _config = InturaConfig()
-        self._api_host      = _config.get("intura_api_host", INTURA_API_HOST)
-        self._api_version   = _config.get("intura_api_version", "v1")
+    
+    def __init__(self, intura_api_key=None):
+        self._api_host      = INTURA_API_HOST
+        self._api_version   = "v1"
+        
+        if not intura_api_key:
+            intura_api_key =  os.environ.get("INTURA_API_KEY")
+            
+        if not intura_api_key:
+            raise ValueError("Intura API Key Not Found")
+        
         self._headers       = {
             'x-request-id': str(uuid4()),
             'x-timestamp': str(datetime.now().timestamp() * 1000),
-            'x-api-key': api_key,
+            'x-api-key': intura_api_key,
             'Content-Type': 'application/json',
         }
-    
-    def check_api_key(self):
+        
+        if not self._check_api_key():
+            raise ValueError("Incorrect Intura API Key")
+        
+    def _check_api_key(self):
         endpoint = "/".join([self._api_host, self._api_version, self._endpoint_check_api_key])
         resp = requests.get(endpoint, headers=self._headers)
         if resp.status_code == 200:
@@ -60,6 +68,7 @@ class InturaFetch:
         
         
     def insert_chat_usage(self, values):
+        return True
         request_body = {
             "body": {
                 "event_name": "CHAT_MODEL_USAGE",

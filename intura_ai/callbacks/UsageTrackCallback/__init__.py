@@ -1,25 +1,24 @@
+import time
 from langchain_core.callbacks import BaseCallbackHandler
 from typing import Any, Dict, List, Union
 from langchain_core.messages.base import BaseMessage
 from langchain_core.outputs.llm_result import LLMResult
 from langchain_core.agents import AgentAction, AgentFinish
 
-from intura_ai.shared.middlewares import validate_class, validate_api_key
-from intura_ai.client import get_intura_client
+from intura_ai.shared.external.intura_api import InturaFetch
 
-@validate_class(validate_api_key)
 class UsageTrackCallback(BaseCallbackHandler):
     """Base callback handler that can be used to handle callbacks from langchain."""
 
-    def __init__(self, experiment_id=None):
+    def __init__(self, *args, **kwargs):
         super().__init__()
-        self._initialized = False
-        self._intura_api = get_intura_client()
-        if self._intura_api:
-            if self._intura_api.check_experiment_id(experiment_id=experiment_id):
-                self._experiment_id = experiment_id
-                self._initialized = True
-
+        self._intura_api = InturaFetch(kwargs["intura_api_key"])
+        self._experiment_id = kwargs["experiment_id"]
+        self._treatment_id = kwargs["treatment_id"]
+        self._treatment_name = kwargs["treatment_name"]
+        self._session_id = kwargs["session_id"]
+        self._start_time = time.perf_counter() 
+  
     def on_llm_start(
         self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
     ) -> Any:
@@ -31,15 +30,15 @@ class UsageTrackCallback(BaseCallbackHandler):
     ) -> Any:
         """Run when Chat Model starts running."""
         # print("OK", self._experiment_id, messages, kwargs)
-        if self._initialized:
-            result = []
-            for message in messages:
-                for row in message:
-                    result.append({
-                        "role": row.type,
-                        "content": row.content
-                    })
-            self._intura_api.insert_chat_input(result)
+        self._start_time = time.perf_counter() 
+        result = []
+        for message in messages:
+            for row in message:
+                result.append({
+                    "role": row.type,
+                    "content": row.content
+                })
+        self._input_chat = result
 
     def on_llm_new_token(self, token: str, **kwargs: Any) -> Any:
         """Run on new LLM token. Only available when streaming is enabled."""
@@ -47,10 +46,36 @@ class UsageTrackCallback(BaseCallbackHandler):
     def on_llm_end(self, response: LLMResult, **kwargs: Any) -> Any:
         for resp in response.generations:
             for inner_resp in resp:
-                self._intura_api.insert_chat_usage(inner_resp.message.usage_metadata)
-                self._intura_api.insert_chat_output({
-                    "content": inner_resp.message.content
-                })
+                end_time = time.perf_counter()
+                input_token = inner_resp.message.usage_metadata["input_tokens"]
+                output_token = inner_resp.message.usage_metadata["output_tokens"]
+                latency = (end_time - self._start_time) * 1000
+                payload = {
+                    "session_id": self._session_id,
+                    "experiment_id": self._experiment_id,
+                    "content": self._input_chat,
+                    "latency": latency,
+                    "result": [
+                            {
+                        "treatment_id": self._treatment_id,
+                        "treatment_name": self._treatment_name,
+                        "prediction_id": inner_resp.message.id,
+                        "predictions": {
+                            "result": inner_resp.message.content,
+                            "cost": {
+                                "total_tokens": input_token + output_token,
+                                "output_tokens": output_token,
+                                "input_tokens": input_token,
+                                "cached_tokens": None
+                            },
+                            "latency": latency
+                        },
+                        "prediction_attribute": {
+                            "source": "SDK"
+                        }
+                    }]
+                }
+                self._intura_api.insert_log_inference(payload=payload)
                 
     def on_llm_error(
         self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
