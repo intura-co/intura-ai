@@ -1,43 +1,182 @@
-name: Publish Python Package
+name: intura-ai CI/CD
 
 on:
   push:
+    branches: [ main ]
     tags:
-      - 'v*'  # Trigger on any tag that starts with 'v'
+      - 'v*'
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.10, 3.11]
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -e ".[dev]"
+    
+    - name: Lint with flake8
+      run: |
+        flake8 intura_ai tests
+    
+    - name: Check formatting with black
+      run: |
+        black --check intura_ai tests
+    
+    - name: Check imports with isort
+      run: |
+        isort --check intura_ai tests
+    
+    - name: Type checking with mypy
+      run: |
+        mypy intura_ai
+    
+    - name: Test with pytest
+      run: |
+        pytest tests/ -v --cov=intura_ai --cov-report=xml
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
     steps:
     - uses: actions/checkout@v3
     
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.x'
+        python-version: '3.10'
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install build twine
+    
+    - name: Extract version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+    
+    - name: Check version consistency
+      run: |
+        VERSION_FILE="intura_ai/__version__.py"
+        PACKAGE_VERSION=$(grep -o '".*"' "$VERSION_FILE" | tr -d '"')
+        if [ "$PACKAGE_VERSION" != "$VERSION" ]; then
+          echo "Error: Tag version ($VERSION) does not match package version ($PACKAGE_VERSION)"
+          exit 1
+        fi
+    
+    - name: Build package
+      run: |
+        python -m build
+    
+    - name: Check package
+      run: |
+        twine check dist/*
+    
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist
+        path: dist/
+        retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Download package artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
     
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install build twine
-        pip install -e ".[dev]"  # Install your package in development mode with dev dependencies
-    
-    - name: Update version from tag
-      run: |
-        # Extract version from tag (without 'v' prefix)
-        VERSION=${GITHUB_REF#refs/tags/v}
-        # Update version in __version__.py
-        echo "__version__ = \"$VERSION\"" > intura_ai/__version__.py
-        # Display the version for verification
-        echo "Publishing version: $VERSION"
-        
-    - name: Build and check package
-      run: |
-        python -m build
-        twine check dist/*
+        python -m pip install twine
     
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
+        skip_existing: true
+
+  create-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Get tag message
+      id: tag_message
+      run: |
+        TAG_MESSAGE=$(git tag -l --format='%(contents)' ${GITHUB_REF#refs/tags/})
+        TAG_MESSAGE="${TAG_MESSAGE//'%'/'%25'}"
+        TAG_MESSAGE="${TAG_MESSAGE//$'\n'/'%0A'}"
+        TAG_MESSAGE="${TAG_MESSAGE//$'\r'/'%0D'}"
+        echo "message=$TAG_MESSAGE" >> $GITHUB_OUTPUT
+    
+    - name: Extract release notes
+      id: extract_release_notes
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        # Check for CHANGELOG.md entries
+        if [ -f "CHANGELOG.md" ]; then
+          RELEASE_NOTES=$(awk -v ver="$VERSION" '/^## \[/ { if (p) { exit }; if ($2 == "['ver']") { p=1; next } } p && NF' CHANGELOG.md)
+        else
+          RELEASE_NOTES="Release $VERSION"
+        fi
+        
+        # Fallback to tag message if no changelog entry
+        if [ -z "$RELEASE_NOTES" ]; then
+          RELEASE_NOTES="${{ steps.tag_message.outputs.message }}"
+        fi
+        
+        # Escape output for GitHub Actions
+        RELEASE_NOTES="${RELEASE_NOTES//'%'/'%25'}"
+        RELEASE_NOTES="${RELEASE_NOTES//$'\n'/'%0A'}"
+        RELEASE_NOTES="${RELEASE_NOTES//$'\r'/'%0D'}"
+        echo "notes<<EOF" >> $GITHUB_OUTPUT
+        echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body: ${{ steps.extract_release_notes.outputs.notes }}
+        files: |
+          dist/*
+        draft: false
+        prerelease: false
