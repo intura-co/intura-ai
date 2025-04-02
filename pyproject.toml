@@ -5,7 +5,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "intura-ai"  # Replace with your package name
-version = "0.0.4.1"  # Initial version
+# We'll use dynamic versioning, see below
+dynamic = ["version"]
 authors = [
     { name = "Intura", email = "developer@intura.co" },
 ]
@@ -16,6 +17,9 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
     "requests>=2.26.0",
@@ -28,6 +32,40 @@ dependencies = [
     "pydantic>=2.9.2"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+    "flake8>=6.0.0",
+    "build>=0.10.0",
+    "twine>=4.0.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/intura-co/intura-ai"
 "Bug Tracker" = "https://github.com/intura-co/intura-ai/issues"
+Documentation = "https://github.com/intura-co/intura-ai/blob/main/README.md"
+Repository = "https://github.com/intura-co/intura-ai"
+
+[tool.setuptools]
+packages = ["intura_ai"]
+
+[tool.setuptools.dynamic]
+version = {attr = "intura_ai.__version__"}
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true

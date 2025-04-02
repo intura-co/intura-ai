@@ -22,6 +22,15 @@ jobs:
         pip install build twine
         pip install -e ".[dev]"  # Install your package in development mode with dev dependencies
     
+    - name: Update version from tag
+      run: |
+        # Extract version from tag (without 'v' prefix)
+        VERSION=${GITHUB_REF#refs/tags/v}
+        # Update version in __version__.py
+        echo "__version__ = \"$VERSION\"" > intura_ai/__version__.py
+        # Display the version for verification
+        echo "Publishing version: $VERSION"
+        
     - name: Build and check package
       run: |
         python -m build
