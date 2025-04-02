@@ -50,7 +50,12 @@ Documentation = "https://github.com/intura-co/intura-ai/blob/main/README.md"
 Repository = "https://github.com/intura-co/intura-ai"
 
 [tool.setuptools]
-packages = ["intura_ai"]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["intura_ai*"]
+exclude = ["tests*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "intura_ai.__version__"}
