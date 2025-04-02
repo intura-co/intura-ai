@@ -8,7 +8,7 @@ class ExperimentTreatmentModel(BaseModel):
     treatment_model_provider: str = Field(description="Model provider (e.g., 'Google', 'Anthropic').")
     treatment_name: Optional[str] = Field(default=None, description="Treatment name.")
     treatment_description: Optional[str] = Field(default=None, description="Treatment description.")
-    treatment_model_configuration: Optional[Union[Dict[str, Any], str, None]] = Field(default=None, description="Model configuration.")
+    treatment_model_configuration: Optional[Union[Dict[str, Any], str, None]] = Field(default={}, description="Model configuration.")
     prompt: str = Field(description="Prompt text.")
     feature_flag: str = Field(default="LIVE_MODE", description="Feature flag (e.g., 'LIVE_MODE', 'LOG_MODE', 'OFF_MODE').")
 

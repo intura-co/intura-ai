@@ -43,7 +43,7 @@ To leverage the Intura AI SDK, you'll need to install it and configure your envi
 With the SDK installed and your API key ready, you can now define your experiment.
 
 1.  **Experiment Definition:**
-    * Use the `CreateExperiment` and `CreateTreatment` functions from the `intura_ai.platform` module to define your experiment and its variations (treatments).
+    * Use the `DashboardPlatform` functions from the `intura_ai.platform` module to operate your experiment. You'll also need to import and use `ExperimentModel` and `ExperimentTreatmentModel` from `intura_ai.platform.domain` to define your experiment and its variations.
 
     ```python
     from intura_ai.platform import DashboardPlatform
@@ -66,6 +66,7 @@ With the SDK installed and your API key ready, you can now define your experimen
         ]
     ))
     ```
+    
     
 ## Running Your Experiment
 

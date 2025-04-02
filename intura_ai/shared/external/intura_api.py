@@ -2,15 +2,18 @@ import requests, os
 from datetime import datetime
 from uuid import uuid4
 from intura_ai.shared.variables.api_host import INTURA_API_HOST
-from intura_ai.platform.domain import ExperimentModel
 
 class InturaFetch:
     _endpoint_check_api_key         = "external/validate-api-key"
     _endpoint_check_experiment_id   = "external/validate-experiment"
-    _endpoint_get_detail_experiment = "external/experiment/detail"
     _endpoint_insert_inference      = "external/insert/inference"
     
     _endpoint_insert_experiment     = "experiment"
+    _endpoint_list_experiment       = "experiment"
+    _endpoint_get_list_models       = "experiment/models"
+    _endpoint_get_detail_experiment = "experiment/detail"
+    _endpoint_build_chat_model      = "experiment/build/chat"
+    
     _endpoint_track_reward          = "ai/track"
     
     def __init__(self, intura_api_key=None):
@@ -41,11 +44,27 @@ class InturaFetch:
         else:
             return False
         
+    def get_list_experiment(self):
+        endpoint = "/".join([self._api_host, self._api_version, self._endpoint_list_experiment])
+        resp = requests.get(endpoint, headers=self._headers)
+        if resp.status_code == 200:
+            return resp.json()["data"]
+        else:
+            return None
+        
     def insert_experiment(self, payload):
         endpoint = "/".join([self._api_host, self._api_version, self._endpoint_insert_experiment])
         resp = requests.post(endpoint, data=payload, headers=self._headers)
         if resp.status_code == 200:
             return resp.json()["data"]["experiment_id"]
+        else:
+            return None
+        
+    def get_list_models(self):
+        endpoint = "/".join([self._api_host, self._api_version, self._endpoint_get_list_models])
+        resp = requests.get(endpoint, headers=self._headers)
+        if resp.status_code == 200:
+            return resp.json()["data"]
         else:
             return None
         
@@ -58,8 +77,17 @@ class InturaFetch:
         else:
             return False
     
-    def get_experiment_detail(self, experiment_id, features={}):
+    def get_experiment_detail(self, experiment_id,):
         endpoint = "/".join([self._api_host, self._api_version, self._endpoint_get_detail_experiment])
+        endpoint = endpoint + f"?experiment_id={experiment_id}"
+        resp = requests.get(endpoint, headers=self._headers)
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            return None
+        
+    def build_chat_model(self, experiment_id, features={}):
+        endpoint = "/".join([self._api_host, self._api_version, self._endpoint_build_chat_model])
         endpoint = endpoint + f"?experiment_id={experiment_id}"
         resp = requests.post(endpoint, json={
             "features": features

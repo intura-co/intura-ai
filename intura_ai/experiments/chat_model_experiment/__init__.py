@@ -20,7 +20,7 @@ class ChatModelExperiment:
         return self._choiced_model
 
     def build(self, experiment_id, session_id=None, features={}, max_pred=1):
-        resp = self._intura_api.get_experiment_detail(experiment_id, features=features)
+        resp = self._intura_api.build_chat_model(experiment_id, features=features)
         if not resp:
             return None, {}, []
         self._data = resp["data"]
