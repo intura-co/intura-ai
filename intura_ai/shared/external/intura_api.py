@@ -2,12 +2,15 @@ import requests, os
 from datetime import datetime
 from uuid import uuid4
 from intura_ai.shared.variables.api_host import INTURA_API_HOST
+from intura_ai.platform.domain import ExperimentModel
 
 class InturaFetch:
     _endpoint_check_api_key         = "external/validate-api-key"
     _endpoint_check_experiment_id   = "external/validate-experiment"
     _endpoint_get_detail_experiment = "external/experiment/detail"
     _endpoint_insert_inference      = "external/insert/inference"
+    
+    _endpoint_insert_experiment     = "experiment"
     _endpoint_track_reward          = "ai/track"
     
     def __init__(self, intura_api_key=None):
@@ -37,6 +40,14 @@ class InturaFetch:
             return True
         else:
             return False
+        
+    def insert_experiment(self, payload):
+        endpoint = "/".join([self._api_host, self._api_version, self._endpoint_insert_experiment])
+        resp = requests.post(endpoint, data=payload, headers=self._headers)
+        if resp.status_code == 200:
+            return resp.json()["data"]["experiment_id"]
+        else:
+            return None
         
     def check_experiment_id(self, experiment_id):
         endpoint = "/".join([self._api_host, self._api_version, self._endpoint_check_experiment_id])

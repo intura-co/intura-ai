@@ -3,7 +3,8 @@ from intura_ai.libs.wrappers.langchain_chat_model import (
     InturaChatOpenAI,
     InturaChatAnthropic,
     InturaChatDeepSeek,
-    InturaChatGoogleGenerativeAI
+    InturaChatGoogleGenerativeAI,
+    InturaChatOllama
 )
 from intura_ai.shared.external.intura_api import InturaFetch
 from intura_ai.callbacks import UsageTrackCallback
@@ -34,10 +35,12 @@ class ChatModelExperiment:
                 model = InturaChatDeepSeek
             elif row["model_provider"] == "OpenAI":
                 model = InturaChatOpenAI
+            elif row["model_provider"] == "Ollama":
+                model = InturaChatOllama
             else:
                 raise NotImplementedError("Model not implemented")
             
-            chat_templates = [("system", f"{prompt['name']} {prompt['value']}") for prompt in row["prompts"]]
+            chat_templates = [("system", row["prompt"])]
             session_id = session_id or str(uuid4())
             model_configuration = {}
             for key in row["model_configuration"]:
