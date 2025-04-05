@@ -245,7 +245,9 @@ class InturaFetch:
         """
         logger.debug(f"Fetching details for experiment: {experiment_id}")
         params = {"experiment_id": experiment_id}
-        return self._make_request("GET", "experiment_detail", params=params)
+        response = self._make_request("GET", "experiment_detail", params=params)
+        return response.get("data") if response else None
+
     
     def build_chat_model(
         self, experiment_id: str, features: Optional[Dict[str, Any]] = None
@@ -262,11 +264,10 @@ class InturaFetch:
         """
         logger.debug(f"Building chat model for experiment: {experiment_id}")
         features = features or {}
-        params = {"experiment_id": experiment_id}
-        json_data = {"features": features}
+        json_data = {"features": features, "experiment_id": experiment_id}
         
         return self._make_request(
-            "POST", "build_chat_model", params=params, json_data=json_data
+            "POST", "build_chat_model", json_data=json_data
         )
     
     def insert_log_inference(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:

@@ -1,13 +1,6 @@
 from uuid import uuid4
-from typing import Dict, List, Tuple, Optional, Any, Type, Union
-
-from intura_ai.libs.wrappers.langchain_chat_model import (
-    InturaChatOpenAI,
-    InturaChatAnthropic,
-    InturaChatDeepSeek,
-    InturaChatGoogleGenerativeAI,
-    InturaChatOllama
-)
+from typing import Dict, List, Tuple, Optional, Any, Type, Union, Callable
+import importlib
 from intura_ai.shared.external.intura_api import InturaFetch
 from intura_ai.callbacks import UsageTrackCallback
 from intura_ai.shared.utils.logging import get_component_logger
@@ -15,14 +8,8 @@ from intura_ai.shared.utils.logging import get_component_logger
 # Get component-specific logger
 logger = get_component_logger("chat_model_experiment")
 
-# Type definitions for better type hinting
-ModelClass = Type[Union[
-    InturaChatOpenAI,
-    InturaChatAnthropic,
-    InturaChatDeepSeek, 
-    InturaChatGoogleGenerativeAI,
-    InturaChatOllama
-]]
+# Type definitions
+ModelClass = Any  # Type relaxed for lazy loading
 ChatTemplate = List[Tuple[str, str]]
 ModelResult = Tuple[ModelClass, Dict[str, Any], ChatTemplate]
 
@@ -32,16 +19,8 @@ class ChatModelExperiment:
     
     This class provides functionality to build and configure chat models
     based on experiment configurations retrieved from the Intura API.
+    With lazy loading to avoid unnecessary dependency installations.
     """
-    
-    # Map provider names to model classes for easier lookup
-    PROVIDER_TO_MODEL = {
-        "Google": InturaChatGoogleGenerativeAI,
-        "Anthropic": InturaChatAnthropic,
-        "Deepseek": InturaChatDeepSeek,
-        "OpenAI": InturaChatOpenAI,
-        "Ollama": InturaChatOllama
-    }
     
     def __init__(self, intura_api_key: Optional[str] = None, verbose: bool = False):
         """
@@ -55,6 +34,7 @@ class ChatModelExperiment:
         self._intura_api_key = intura_api_key
         self._intura_api = InturaFetch(intura_api_key)
         self._data = []
+        self._model_cache = {}  # Cache for imported model classes
         
         # Configure component-specific logging if verbose is specified
         if verbose:
@@ -73,6 +53,44 @@ class ChatModelExperiment:
         """Get the experiment data retrieved from the API."""
         return self._data
     
+    def _lazy_import_model_class(self, provider: str, module_path: str, class_name: str) -> Type:
+        """
+        Lazily import the model class for the given provider.
+        
+        Args:
+            provider: The model provider name
+            module_path: The import path for the module
+            class_name: The name of the class to import
+            
+        Returns:
+            The imported model class
+            
+        Raises:
+            ValueError: If the model provider is not supported
+            ImportError: If the import fails
+        """
+        # Check if we've already imported this class
+        if provider in self._model_cache:
+            return self._model_cache[provider]
+        
+        # Import the module and get the class
+        try:
+            module = importlib.import_module(module_path)
+            model_class = getattr(module, class_name)
+            
+            # Cache the imported class
+            self._model_cache[provider] = model_class
+            logger.debug(f"Lazily imported {class_name} for provider {provider}")
+            
+            return model_class
+        except ImportError as e:
+            logger.error(f"Failed to import model class for provider {provider}: {str(e)}")
+            raise ImportError(f"The {provider} provider requires additional dependencies. "
+                            f"Please install them with 'pip install intura_ai[{provider.lower()}]'") from e
+        except AttributeError as e:
+            logger.error(f"Model class for provider {provider} not found: {str(e)}")
+            raise ImportError(f"Model class for provider {provider} not found") from e
+    
     def _create_model_result(
         self, 
         model_data: Dict[str, Any], 
@@ -89,18 +107,13 @@ class ChatModelExperiment:
             
         Returns:
             A tuple of (model_class, configuration, chat_templates)
-            
-        Raises:
-            ValueError: If the model provider is not supported
         """
         provider = model_data["model_provider"]
+        module_path = model_data["sdk_config"]["module_path"]
+        class_name = model_data["sdk_config"]["class_name"]
         
-        # Get the appropriate model class
-        if provider not in self.PROVIDER_TO_MODEL:
-            logger.error(f"Unsupported model provider: {provider}")
-            raise ValueError(f"Unsupported model provider: {provider}")
-            
-        model_class = self.PROVIDER_TO_MODEL[provider]
+        # Get the appropriate model class (lazy import)
+        model_class = self._lazy_import_model_class(provider, module_path, class_name)
         logger.debug(f"Using model class: {model_class.__name__} for provider {provider}")
         
         # Create chat templates
@@ -141,7 +154,7 @@ class ChatModelExperiment:
         self, 
         experiment_id: str, 
         session_id: Optional[str] = None, 
-        features: Dict[str, Any] = None, 
+        features: Optional[Dict[str, Any]] = None, 
         max_models: int = 1,
         verbose: bool = False
     ) -> Union[ModelResult, List[ModelResult], Tuple[None, Dict, List]]:
@@ -163,8 +176,8 @@ class ChatModelExperiment:
         # Temporarily increase logging level if requested for this operation
         original_level = None
         if verbose:
-            from intura_ai.shared.utils.logging import set_component_level
-            original_level = logger.level
+            from intura_ai.shared.utils.logging import set_component_level, get_component_level
+            original_level = get_component_level("chat_model_experiment")
             set_component_level("chat_model_experiment", "debug")
         
         try:
@@ -195,6 +208,9 @@ class ChatModelExperiment:
                     if len(results) >= max_models:
                         break
                         
+                except ImportError as e:
+                    # Log the import error but continue with other models
+                    logger.warning(f"Skipping model due to missing dependencies: {str(e)}")
                 except Exception as e:
                     logger.error(f"Error creating model result: {str(e)}")
             

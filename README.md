@@ -6,6 +6,16 @@
 
 `intura-ai` is a Python package designed to streamline LLM experimentation and production. It provides tools for logging LLM usage and managing experiment predictions, with seamless LangChain compatibility.
 
+## ⚠️ Beta Status
+
+**IMPORTANT**: Intura AI is currently in **BETA** and under active development. While we're working hard to ensure stability, you may encounter:
+
+- API changes without prior notice
+- Incomplete features
+- Bugs and performance issues
+
+We welcome your feedback and contributions to help improve the library!
+
 # Getting Started with Intura
 
 Dive into the world of Intura and begin experimenting with Large Language Models (LLMs) in under 5 minutes. This guide will walk you through the essential steps to set up your first experiment, either through our SDK or directly via the Intura Dashboard.
