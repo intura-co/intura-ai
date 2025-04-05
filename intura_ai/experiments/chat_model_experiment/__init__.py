@@ -118,6 +118,7 @@ class ChatModelExperiment:
             treatment_id=model_data["treatment_id"],
             treatment_name=model_data["treatment_name"],
             session_id=session_id,
+            model_name=model_configuration["model"]
         )
         
         metadata = {

@@ -21,6 +21,7 @@ class CallbackConfig:
     treatment_id: str
     treatment_name: str
     session_id: str
+    model_name: str
 
 
 class UsageTrackCallback(BaseCallbackHandler):
@@ -38,6 +39,7 @@ class UsageTrackCallback(BaseCallbackHandler):
         treatment_id: str,
         treatment_name: str,
         session_id: str,
+        model_name: str,
         verbose: bool = False
     ):
         """
@@ -59,7 +61,8 @@ class UsageTrackCallback(BaseCallbackHandler):
             experiment_id=experiment_id,
             treatment_id=treatment_id,
             treatment_name=treatment_name,
-            session_id=session_id
+            session_id=session_id,
+            model_name=model_name
         )
         
         # Initialize API client
@@ -186,6 +189,7 @@ class UsageTrackCallback(BaseCallbackHandler):
                     "treatment_id": self._config.treatment_id,
                     "treatment_name": self._config.treatment_name,
                     "prediction_id": prediction_id,
+                    "model_name": self._config.model_name,
                     "predictions": {
                         "result": result,
                         "cost": {
@@ -197,7 +201,8 @@ class UsageTrackCallback(BaseCallbackHandler):
                         "latency": latency
                     },
                     "prediction_attribute": {
-                        "source": "SDK"
+                        "source": "SDK",
+                        "package_name": "intura-ai"
                     }
                 }
             ]
