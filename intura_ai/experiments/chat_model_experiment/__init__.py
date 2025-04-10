@@ -2,8 +2,7 @@ import os
 from uuid import uuid4
 from typing import Dict, List, Tuple, Optional, Any, Type, Union
 import importlib
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, SystemMessagePromptTemplate
 
 from intura_ai.shared.external.intura_api import InturaFetch
 from intura_ai.callbacks import UsageTrackCallback
@@ -176,17 +175,16 @@ class ChatModelExperiment:
         logger.debug(f"Using model class: {model_class.__name__} for provider {provider}")
         
         # Create chat templates
-        chat_prompts = [SystemMessage(content=model_data["prompt"])]
+        chat_prompts = [SystemMessagePromptTemplate.from_template(template=model_data["prompt"])]
         
         # Add any existing conversation messages
         for message in messages:
             role = message.get("role", "")
             content = message.get("content", "")
-            
             if role == "human":
-                chat_prompts.append(HumanMessage(content=content))
+                chat_prompts.append(HumanMessagePromptTemplate.from_template(template=content))
             elif role == "ai":
-                chat_prompts.append(AIMessage(content=content))
+                chat_prompts.append(AIMessagePromptTemplate.from_template(template=content))
         
         chat_template = ChatPromptTemplate.from_messages(chat_prompts)
         
@@ -241,7 +239,7 @@ class ChatModelExperiment:
         api_key: Optional[str] = None,
         api_key_mapping: Optional[Dict[str, str]] = None,
         additional_model_configs: Optional[Dict[str, Any]] = None, 
-    ) -> Union[ModelResult, List[ModelResult], Tuple[None, Dict, List]]:
+    ) -> Union[ModelResult, List[ModelResult]]:
         """
         Build chat models based on experiment configuration.
         
