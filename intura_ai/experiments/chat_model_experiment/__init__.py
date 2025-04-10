@@ -145,6 +145,7 @@ class ChatModelExperiment:
         messages: List[Dict[str, str]] = None,
         api_key: Optional[str] = None,
         additional_model_configs: Optional[Dict[str, Any]] = None, 
+        api_key_mapping: Optional[Dict[str, str]] = None
     ) -> ModelResult:
         """
         Create a model result from model data.
@@ -197,6 +198,8 @@ class ChatModelExperiment:
         # Add API key if provided
         if api_key:
             model_configuration["api_key"] = api_key
+        elif api_key_mapping:
+            model_configuration["api_key"] = api_key_mapping[model_configuration.get("model", "unknown")]
         
         # Create the callback and metadata
         callback = UsageTrackCallback(
@@ -236,6 +239,7 @@ class ChatModelExperiment:
         verbose: bool = False,
         messages: List[Dict[str, str]] = None,
         api_key: Optional[str] = None,
+        api_key_mapping: Optional[Dict[str, str]] = None,
         additional_model_configs: Optional[Dict[str, Any]] = None, 
     ) -> Union[ModelResult, List[ModelResult], Tuple[None, Dict, List]]:
         """
@@ -299,7 +303,8 @@ class ChatModelExperiment:
                         session_id,
                         messages,
                         api_key,
-                        additional_model_configs
+                        additional_model_configs,
+                        api_key_mapping
                     )
                     results.append(result)
                     

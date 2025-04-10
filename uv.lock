@@ -804,7 +804,7 @@ name = "importlib-metadata"
 version = "8.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp" },
+    { name = "zipp", marker = "python_full_version < '3.12.4'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/33/08/c1395a292bb23fd03bdf572a1357c5a733d3eecbab877641ceacab23db6e/importlib_metadata-8.6.1.tar.gz", hash = "sha256:310b41d755445d74569f993ccfc22838295d9fe005425094fad953d7f15c8580", size = 55767 }
 wheels = [
@@ -831,6 +831,13 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+all-langchain-partner = [
+    { name = "langchain-anthropic" },
+    { name = "langchain-deepseek" },
+    { name = "langchain-google-genai" },
+    { name = "langchain-openai" },
+    { name = "langchain-together" },
+]
 anthropic = [
     { name = "langchain-anthropic" },
 ]
@@ -863,11 +870,16 @@ requires-dist = [
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=6.0.0" },
     { name = "isort", marker = "extra == 'dev'", specifier = ">=5.12.0" },
     { name = "langchain", specifier = ">=0.3.13" },
+    { name = "langchain-anthropic", marker = "extra == 'all-langchain-partner'" },
     { name = "langchain-anthropic", marker = "extra == 'anthropic'" },
     { name = "langchain-community", specifier = ">=0.3.13" },
+    { name = "langchain-deepseek", marker = "extra == 'all-langchain-partner'" },
     { name = "langchain-deepseek", marker = "extra == 'deepseek'" },
+    { name = "langchain-google-genai", marker = "extra == 'all-langchain-partner'" },
     { name = "langchain-google-genai", marker = "extra == 'google-genai'" },
+    { name = "langchain-openai", marker = "extra == 'all-langchain-partner'" },
     { name = "langchain-openai", marker = "extra == 'openai'" },
+    { name = "langchain-together", marker = "extra == 'all-langchain-partner'" },
     { name = "langchain-together", marker = "extra == 'together'" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "pydantic", specifier = ">=2.9.2" },
@@ -875,7 +887,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.26.0" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=4.0.0" },
 ]
-provides-extras = ["dev", "together", "google-genai", "deepseek", "anthropic", "openai"]
+provides-extras = ["dev", "all-langchain-partner", "together", "google-genai", "deepseek", "anthropic", "openai"]
 
 [[package]]
 name = "isort"
