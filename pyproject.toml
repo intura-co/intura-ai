@@ -38,6 +38,18 @@ dev = [
     "build>=0.10.0",
     "twine>=4.0.0",
 ]
+all-langchain-partner = [
+    "langchain-together",
+    "langchain-google-genai",
+    "langchain-deepseek",
+    "langchain-anthropic",
+    "langchain-openai"
+]
+together = ["langchain-together"]
+google-genai = ["langchain-google-genai"]
+deepseek = ["langchain-deepseek"]
+anthropic = ["langchain-anthropic"]
+openai = ["langchain-openai"]
 
 [project.urls]
 Homepage = "https://github.com/intura-co/intura-ai"
@@ -45,8 +57,8 @@ Homepage = "https://github.com/intura-co/intura-ai"
 Documentation = "https://github.com/intura-co/intura-ai/blob/main/README.md"
 Repository = "https://github.com/intura-co/intura-ai"
 
-[tool.setuptools]
-package-dir = {"" = "."}
+[tool.setuptools.package-data]
+intura_ai = ["py.typed"]
 
 [tool.setuptools.packages.find]
 where = ["."]
