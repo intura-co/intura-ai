@@ -137,7 +137,7 @@ chat_client = ChatModelExperiment(
 )
 
 # Build the experiment chain with user-specific features
-chain = chat_client.build(
+llm, prompts = chat_client.build(
     experiment_id=experiment_id,  # Use the ID from the experiment you created
     features={
         "user_id": "user123",     # User identifier
@@ -150,6 +150,7 @@ chain = chat_client.build(
         "content": "I'm feeling unmotivated today. Can you help me get back on track?"
     }]
 )
+chain = prompts | llm
 
 # Invoke the experiment (Intura will automatically select one of your treatments)
 response = chain.invoke({})
@@ -199,7 +200,7 @@ response = chain.invoke({
 For multi-turn conversations, you can add to the messages array:
 
 ```python
-chain = chat_client.build(
+llm, prompts = chat_client.build(
     experiment_id=experiment_id,
     features={"user_id": "user123"},
     messages=[

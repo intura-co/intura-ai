@@ -226,7 +226,7 @@ class ChatModelExperiment:
         
         # Initialize the model and combine with the chat template
         model = model_class(**configuration)
-        return chat_template | model
+        return model, chat_template
     
     def build(
         self, 
@@ -238,7 +238,7 @@ class ChatModelExperiment:
         messages: List[Dict[str, str]] = None,
         api_key: Optional[str] = None,
         api_key_mapping: Optional[Dict[str, str]] = None,
-        additional_model_configs: Optional[Dict[str, Any]] = None, 
+        additional_model_configs: Optional[Dict[str, Any]] = None
     ) -> Union[ModelResult, List[ModelResult]]:
         """
         Build chat models based on experiment configuration.
