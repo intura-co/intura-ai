@@ -1,3 +1,5 @@
+![intura-banner](./assets/images/intura.jpg)
+
 # Intura-AI: Intelligent Research and Experimentation AI
 
 [![PyPI version](https://badge.fury.io/py/intura-ai.svg)](https://badge.fury.io/py/intura-ai) 
