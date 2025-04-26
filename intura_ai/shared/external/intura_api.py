@@ -37,6 +37,7 @@ class InturaFetch:
         "list_models": "experiment/models",
         "experiment_detail": "experiment/detail",
         "build_chat_model": "experiment/build/chat",
+        "invoke_chat_model": "experiment/inference/chat",
         
         # Tracking and rewards
         "track_reward": "ai/track"
@@ -268,6 +269,38 @@ class InturaFetch:
         
         return self._make_request(
             "POST", "build_chat_model", json_data=json_data
+        )
+        
+    def inference_chat_model(
+        self, 
+            experiment_id: str, 
+            features: Optional[Dict[str, Any]] = None, 
+            messages: List[Dict[str, str]] = None,
+            session_id: Optional[str] = None, 
+            max_inferences: int = 1
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Build a chat model based on an experiment configuration.
+        
+        Args:
+            experiment_id: ID of the experiment
+            features: Features to include in the model
+            
+        Returns:
+            Model configuration or None if the request fails
+        """
+        logger.debug(f"Invoking chat model for experiment: {experiment_id}")
+        features = features or {}
+        json_data = {
+            "features": features, 
+            "experiment_id": experiment_id, 
+            "messages": messages, 
+            "session_id": session_id,
+            "max_inferences": max_inferences
+        }
+        
+        return self._make_request(
+            "POST", "invoke_chat_model", json_data=json_data
         )
     
     def insert_log_inference(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:

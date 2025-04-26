@@ -1,7 +1,9 @@
 import os
 from uuid import uuid4
-from typing import Dict, List, Tuple, Optional, Any, Type, Union
+from typing import Dict, List, Tuple, Optional, Any, Type, Union, TypeVar, Callable
 import importlib
+from functools import lru_cache
+from dataclasses import dataclass
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, SystemMessagePromptTemplate
 
 from intura_ai.shared.external.intura_api import InturaFetch
@@ -9,11 +11,18 @@ from intura_ai.callbacks import UsageTrackCallback
 from intura_ai.shared.utils.logging import get_component_logger, set_component_level
 
 # Type definitions
-ModelClass = Any  # Type relaxed for lazy loading
-ModelResult = Any  # The result of the model chain creation
+ModelClass = TypeVar('ModelClass')  # More precise typing with TypeVar
+ModelResult = Tuple[Any, ChatPromptTemplate]  # The result of the model chain creation
 
-# Get component-specific logger
-logger = get_component_logger("chat_model_experiment")
+# Define message schema for validation
+@dataclass
+class Message:
+    role: str
+    content: str
+
+# Centralize the logging setup
+COMPONENT_NAME = "chat_model_experiment"
+logger = get_component_logger(COMPONENT_NAME)
 
 class ChatModelExperiment:
     """
@@ -29,33 +38,48 @@ class ChatModelExperiment:
         Initialize a new chat model experiment.
         
         Args:
-            intura_api_key: API key for Intura services
+            intura_api_key: API key for Intura services. If None, reads from INTURA_API_KEY env var
             verbose: Enable verbose logging for this component
         """
-        self._chosen_model = None  # Fixed spelling
-        api_key = intura_api_key or os.environ.get("INTURA_API_KEY")
-        self._intura_api_key = api_key
-        self._intura_api = InturaFetch(api_key)
+        self._chosen_model = None
+        self._intura_api_key = intura_api_key or os.environ.get("INTURA_API_KEY")
+        self._intura_api = InturaFetch(self._intura_api_key)
         self._data = []
         self._model_cache = {}  # Cache for imported model classes
-        
+            
         # Configure component-specific logging if verbose is specified
         if verbose:
-            set_component_level("chat_model_experiment", "debug")
+            self._set_verbose_logging(True)
             
         logger.debug("Initialized ChatModelExperiment")
+    
+    def _set_verbose_logging(self, verbose: bool) -> Optional[str]:
+        """
+        Set or restore logging level for this component.
+        
+        Args:
+            verbose: Whether to enable verbose (debug) logging
+            
+        Returns:
+            Original log level if changed, None otherwise
+        """
+        if verbose:
+            original_level = set_component_level(COMPONENT_NAME, "debug")
+            return original_level
+        return None
     
     @property
     def chosen_model(self) -> Optional[str]:
         """Get the selected model for the experiment."""
-        return self._chosen_model  # Fixed spelling
+        return self._chosen_model
     
     @property
     def data(self) -> List[Dict[str, Any]]:
         """Get the experiment data retrieved from the API."""
         return self._data
-        
-    def _validate_messages(self, messages: List[Dict[str, str]]) -> None:
+    
+    @staticmethod
+    def _validate_messages(messages: List[Dict[str, str]]) -> None:
         """
         Validate that the messages list contains at least one human message
         and that each message follows the required schema.
@@ -66,8 +90,8 @@ class ChatModelExperiment:
         Raises:
             ValueError: If there is no human message in the list or if messages don't follow the schema
         """
-        if  len(messages) == 0:
-            raise ValueError("At least one message with role='human' is required in the messages list")
+        if not messages:
+            raise ValueError("Messages list cannot be empty")
             
         # Check for at least one human message
         has_human_message = any(
@@ -94,11 +118,12 @@ class ChatModelExperiment:
                 error_msg = f"Message at index {i} has invalid schema ({', '.join(error_parts)})"
                 logger.warning(error_msg)
                 raise ValueError(error_msg)
-
     
-    def _lazy_import_model_class(self, provider: str, module_path: str, class_name: str) -> Type:
+    @lru_cache(maxsize=32)
+    def _lazy_import_model_class(self, provider: str, module_path: str, class_name: str) -> Type[ModelClass]:
         """
         Lazily import the model class for the given provider.
+        Cache the result to avoid repeated imports.
         
         Args:
             provider: The model provider name
@@ -136,6 +161,61 @@ class ChatModelExperiment:
             logger.error(f"Model class for provider {provider} not found: {str(e)}")
             raise ImportError(f"Model class {class_name} for provider {provider} not found") from e
     
+    def _create_chat_template(self, 
+                             system_prompt: str, 
+                             messages: List[Dict[str, str]]) -> ChatPromptTemplate:
+        """
+        Create a chat template from a system prompt and a list of messages.
+        
+        Args:
+            system_prompt: The system prompt to use
+            messages: List of message dictionaries to include in the template
+            
+        Returns:
+            A ChatPromptTemplate object
+        """
+        # Create chat templates
+        chat_prompts = [SystemMessagePromptTemplate.from_template(template=system_prompt)]
+        
+        # Add any existing conversation messages
+        for message in messages:
+            role = message.get("role", "")
+            content = message.get("content", "")
+            if role == "human":
+                chat_prompts.append(HumanMessagePromptTemplate.from_template(template=content))
+            elif role == "ai":
+                chat_prompts.append(AIMessagePromptTemplate.from_template(template=content))
+        
+        return ChatPromptTemplate.from_messages(chat_prompts)
+    
+    def _create_model_callback(self, 
+                              experiment_id: str, 
+                              treatment_id: str,
+                              treatment_name: str,
+                              session_id: str,
+                              model_name: str) -> UsageTrackCallback:
+        """
+        Create a usage tracking callback for the model.
+        
+        Args:
+            experiment_id: ID of the experiment
+            treatment_id: ID of the treatment
+            treatment_name: Name of the treatment
+            session_id: Session ID for the experiment
+            model_name: Name of the model
+            
+        Returns:
+            A UsageTrackCallback object
+        """
+        return UsageTrackCallback(
+            intura_api_key=self._intura_api_key,
+            experiment_id=experiment_id,
+            treatment_id=treatment_id,
+            treatment_name=treatment_name,
+            session_id=session_id,
+            model_name=model_name
+        )
+    
     def _create_model_result(
         self, 
         model_data: Dict[str, Any], 
@@ -156,15 +236,13 @@ class ChatModelExperiment:
             messages: Optional list of messages to pre-populate the chat
             api_key: Optional API key to override configuration
             additional_model_configs: Additional model configuration parameters
+            api_key_mapping: Mapping of model names to API keys
             
         Returns:
-            A langchain chain combining the chat template and model
+            A tuple of (model, chat_template)
         """
         messages = messages or []
         additional_model_configs = additional_model_configs or {}
-        
-        # Validate that there's at least one human message if messages are provided
-        self._validate_messages(messages)
         
         provider = model_data["model_provider"]
         module_path = model_data["sdk_config"]["module_path"]
@@ -175,18 +253,7 @@ class ChatModelExperiment:
         logger.debug(f"Using model class: {model_class.__name__} for provider {provider}")
         
         # Create chat templates
-        chat_prompts = [SystemMessagePromptTemplate.from_template(template=model_data["prompt"])]
-        
-        # Add any existing conversation messages
-        for message in messages:
-            role = message.get("role", "")
-            content = message.get("content", "")
-            if role == "human":
-                chat_prompts.append(HumanMessagePromptTemplate.from_template(template=content))
-            elif role == "ai":
-                chat_prompts.append(AIMessagePromptTemplate.from_template(template=content))
-        
-        chat_template = ChatPromptTemplate.from_messages(chat_prompts)
+        chat_template = self._create_chat_template(model_data["prompt"], messages)
         
         # Filter out None values from model configuration
         model_configuration = {
@@ -194,26 +261,27 @@ class ChatModelExperiment:
         }
         
         # Add API key if provided
+        model_name = model_configuration.get("model", "unknown")
         if api_key:
             model_configuration["api_key"] = api_key
-        elif api_key_mapping:
-            model_configuration["api_key"] = api_key_mapping[model_configuration.get("model", "unknown")]
+        elif api_key_mapping and model_name in api_key_mapping:
+            model_configuration["api_key"] = api_key_mapping[model_name]
         
         # Create the callback and metadata
-        callback = UsageTrackCallback(
-            intura_api_key=self._intura_api_key,
+        callback = self._create_model_callback(
             experiment_id=experiment_id,
             treatment_id=model_data["treatment_id"],
             treatment_name=model_data["treatment_name"],
             session_id=session_id,
-            model_name=model_configuration.get("model", "unknown")
+            model_name=model_name
         )
         
         metadata = {
             "experiment_id": experiment_id,
             "treatment_id": model_data["treatment_id"],
             "treatment_name": model_data["treatment_name"],
-            "session_id": session_id
+            "session_id": session_id,
+            "model_name": model_name
         }
         
         # Combine everything into configuration
@@ -228,6 +296,73 @@ class ChatModelExperiment:
         model = model_class(**configuration)
         return model, chat_template
     
+    def invoke(
+        self,
+        experiment_id: str,
+        session_id: Optional[str] = None, 
+        features: Optional[Dict[str, Any]] = None, 
+        max_inferences: int = 1,
+        verbose: bool = False,
+        messages: List[Dict[str, str]] = None,
+    ) -> Union[Dict[str, Any], None]:
+        """
+        Run inference based on experiment configuration.
+        
+        Args:
+            experiment_id: ID of the experiment
+            session_id: Optional session ID (will generate one if not provided)
+            features: Features to include in the experiment
+            max_inferences: Maximum number of results to return
+            verbose: Enable verbose logging for this specific operation
+            messages: Optional list of messages to pre-populate the chat
+            
+        Returns:
+            JSON response from the API or None if error
+        """
+        messages = messages or []
+        features = features or {}
+        session_id = session_id or str(uuid4())
+        
+        # Skip validation if messages is empty
+        if messages:
+            try:
+                self._validate_messages(messages)
+            except ValueError as e:
+                logger.error(f"Invalid messages format: {str(e)}")
+                return None
+        
+        # Temporarily increase logging level if requested for this operation
+        original_level = None
+        if verbose:
+            original_level = self._set_verbose_logging(True)
+        
+        try:
+            logger.info(f"Running inference for experiment: {experiment_id}")
+            logger.debug(f"Features: {features}, Session ID: {session_id}")
+            
+            # Fetch model data from API
+            resp = self._intura_api.inference_chat_model(
+                experiment_id, 
+                features=features,
+                messages=messages,
+                max_inferences=max_inferences,
+                session_id=session_id
+            )
+            if not resp:
+                logger.warning(f"Failed to run inference for experiment: {experiment_id}")
+                return None
+            print(resp, "=")
+            return resp.json()
+            
+        except Exception as e:
+            logger.error(f"Error in invoke: {str(e)}", exc_info=True)
+            return None
+            
+        finally:
+            # Restore original logging level if we changed it
+            if verbose and original_level is not None:
+                set_component_level(COMPONENT_NAME, original_level)
+    
     def build(
         self, 
         experiment_id: str, 
@@ -239,7 +374,7 @@ class ChatModelExperiment:
         api_key: Optional[str] = None,
         api_key_mapping: Optional[Dict[str, str]] = None,
         additional_model_configs: Optional[Dict[str, Any]] = None
-    ) -> Union[ModelResult, List[ModelResult]]:
+    ) -> Union[ModelResult, List[ModelResult], None]:
         """
         Build chat models based on experiment configuration.
         
@@ -251,6 +386,7 @@ class ChatModelExperiment:
             verbose: Enable verbose logging for this specific build
             messages: Optional list of messages to pre-populate the chat
             api_key: Optional API key to override configuration
+            api_key_mapping: Mapping of model names to API keys
             additional_model_configs: Additional model configuration parameters
             
         Returns:
@@ -263,17 +399,18 @@ class ChatModelExperiment:
         additional_model_configs = additional_model_configs or {}
         session_id = session_id or str(uuid4())
         
-        # Validate that there's at least one human message if messages are provided
-        try:
-            self._validate_messages(messages)
-        except ValueError as e:
-            logger.error(f"Invalid messages format: {str(e)}")
-            return None
+        # Skip validation if messages is empty
+        if messages:
+            try:
+                self._validate_messages(messages)
+            except ValueError as e:
+                logger.error(f"Invalid messages format: {str(e)}")
+                return None
         
         # Temporarily increase logging level if requested for this operation
         original_level = None
         if verbose:
-            set_component_level("chat_model_experiment", "debug")
+            original_level = self._set_verbose_logging(True)
         
         try:
             logger.info(f"Building chat model for experiment: {experiment_id}")
@@ -293,7 +430,7 @@ class ChatModelExperiment:
                 return None
                 
             results = []
-            for model_data in self._data:
+            for model_data in self._data[:max_models]:
                 try:
                     result = self._create_model_result(
                         model_data, 
@@ -308,10 +445,6 @@ class ChatModelExperiment:
                     
                     model_name = model_data.get("model_configuration", {}).get("model", "unknown")
                     logger.debug(f"Added model: {model_name}")
-                    
-                    # If we've reached the desired number of models, break
-                    if len(results) >= max_models:
-                        break
                         
                 except ImportError as e:
                     # Log the import error but continue with other models
@@ -319,11 +452,11 @@ class ChatModelExperiment:
                 except Exception as e:
                     logger.error(f"Error creating model result: {str(e)}", exc_info=True)
             
-            # Set the chosen model if we have results
+            # Return appropriate results based on max_models
             if results:
                 if max_models == 1:
                     model_name = self._data[0].get("model_configuration", {}).get("model", "unknown")
-                    self._chosen_model = model_name  # Fixed spelling
+                    self._chosen_model = model_name
                     logger.info(f"Selected model: {model_name}")
                     return results[0]
                 return results
@@ -338,4 +471,4 @@ class ChatModelExperiment:
         finally:
             # Restore original logging level if we changed it
             if verbose and original_level is not None:
-                set_component_level("chat_model_experiment", original_level)
+                set_component_level(COMPONENT_NAME, original_level)
