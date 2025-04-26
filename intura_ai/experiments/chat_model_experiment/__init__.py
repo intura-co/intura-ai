@@ -5,6 +5,7 @@ import importlib
 from functools import lru_cache
 from dataclasses import dataclass
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, SystemMessagePromptTemplate
+from langchain_core.messages.ai import AIMessage
 
 from intura_ai.shared.external.intura_api import InturaFetch
 from intura_ai.callbacks import UsageTrackCallback
@@ -337,7 +338,7 @@ class ChatModelExperiment:
             original_level = self._set_verbose_logging(True)
         
         try:
-            logger.info(f"Running inference for experiment: {experiment_id}")
+            logger.info(f"Running invoke for experiment: {experiment_id}")
             logger.debug(f"Features: {features}, Session ID: {session_id}")
             
             # Fetch model data from API
@@ -349,10 +350,26 @@ class ChatModelExperiment:
                 session_id=session_id
             )
             if not resp:
-                logger.warning(f"Failed to run inference for experiment: {experiment_id}")
+                logger.warning(f"Failed to run invoke for experiment: {experiment_id}")
                 return None
-            print(resp, "=")
-            return resp.json()
+            results = []
+            for data in resp["data"]:
+                results.append(AIMessage(
+                    content=data["predictions"]["content"],
+                    id=data["prediction_id"],
+                    name=data["treatment_name"],
+                    response_metadata={
+                        "model_name": data["model_name"],
+                        "treatment_name": data["treatment_name"],
+                        "latency": data["predictions"]["latency"]
+                    },
+                    usage_metadata={
+                        **data["predictions"]["usage_metadata"]
+                    }
+                ))
+                if max_inferences == 1:
+                    return results[0]
+            return results
             
         except Exception as e:
             logger.error(f"Error in invoke: {str(e)}", exc_info=True)
