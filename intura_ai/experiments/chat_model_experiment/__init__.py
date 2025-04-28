@@ -309,6 +309,8 @@ class ChatModelExperiment:
         session_id: Optional[str] = None, 
         features: Optional[Dict[str, Any]] = None, 
         max_inferences: int = 1,
+        latency_threshold: int = 30,
+        max_timeout: int = 120,
         verbose: bool = False,
         messages: List[Dict[str, str]] = None,
     ) -> Union[Dict[str, Any], None]:
@@ -353,8 +355,11 @@ class ChatModelExperiment:
                 features=features,
                 messages=messages,
                 max_inferences=max_inferences,
-                session_id=session_id
+                session_id=session_id,
+                latency_threshold=latency_threshold,
+                max_timeout=max_timeout
             )
+            
             if not resp:
                 logger.warning(f"Failed to run invoke for experiment: {experiment_id}")
                 return None
@@ -366,6 +371,7 @@ class ChatModelExperiment:
                     name=data["treatment_name"],
                     response_metadata={
                         "model_name": data["model_name"],
+                        "treatment_id": data["treatment_id"],
                         "treatment_name": data["treatment_name"],
                         "latency": data["predictions"]["latency"]
                     },
