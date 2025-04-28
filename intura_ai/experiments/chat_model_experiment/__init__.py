@@ -4,8 +4,8 @@ from typing import Dict, List, Tuple, Optional, Any, Type, Union, TypeVar, Calla
 import importlib
 from functools import lru_cache
 from dataclasses import dataclass
-from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, SystemMessagePromptTemplate
-from langchain_core.messages.ai import AIMessage
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from intura_ai.shared.external.intura_api import InturaFetch
 from intura_ai.callbacks import UsageTrackCallback
@@ -176,16 +176,22 @@ class ChatModelExperiment:
             A ChatPromptTemplate object
         """
         # Create chat templates
-        chat_prompts = [SystemMessagePromptTemplate.from_template(template=system_prompt)]
+        chat_prompts = [SystemMessage(
+            content=system_prompt
+        )]
         
         # Add any existing conversation messages
         for message in messages:
             role = message.get("role", "")
             content = message.get("content", "")
             if role == "human":
-                chat_prompts.append(HumanMessagePromptTemplate.from_template(template=content))
+                chat_prompts.append(HumanMessage(
+                    content=content
+                ))
             elif role == "ai":
-                chat_prompts.append(AIMessagePromptTemplate.from_template(template=content))
+                chat_prompts.append(AIMessage(
+                    content=content
+                ))
         
         return ChatPromptTemplate.from_messages(chat_prompts)
     
@@ -434,7 +440,7 @@ class ChatModelExperiment:
             logger.debug(f"Features: {features}, Session ID: {session_id}")
             
             # Fetch model data from API
-            resp = self._intura_api.build_chat_model(experiment_id, features=features)
+            resp = self._intura_api.build_chat_model(experiment_id, features=features, messages=messages)
             if not resp:
                 logger.warning(f"Failed to build chat model for experiment: {experiment_id}")
                 return None

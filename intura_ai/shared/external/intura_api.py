@@ -2,7 +2,7 @@ import os
 import json
 import requests
 from datetime import datetime
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any, Optional, Union, List, TypedDict
 from uuid import uuid4
 
 from intura_ai.shared.variables.api_host import INTURA_API_HOST
@@ -14,6 +14,11 @@ logger = get_component_logger("intura_api")
 class InturaAPIError(Exception):
     """Exception raised for Intura API errors."""
     pass
+
+class ChatMessage(TypedDict):
+    """Type definition for chat messages."""
+    role: str
+    content: str
 
 class InturaFetch:
     """
@@ -101,6 +106,9 @@ class InturaFetch:
             
         Returns:
             Full URL for the endpoint
+            
+        Raises:
+            ValueError: If the endpoint key is not found in ENDPOINTS
         """
         if endpoint_key not in self.ENDPOINTS:
             raise ValueError(f"Unknown endpoint: {endpoint_key}")
@@ -159,14 +167,14 @@ class InturaFetch:
                 # For endpoints that return plain text or other formats
                 return {"status": "success", "code": response.status_code}
             else:
-                logger.warning(
-                    f"API request failed: {response.status_code} - {response.text[:100]}"
-                )
+                error_msg = f"API request failed: {response.status_code} - {response.text[:100]}"
+                logger.warning(error_msg)
                 return None
                 
         except requests.RequestException as e:
-            logger.error(f"Request error: {str(e)}")
-            raise InturaAPIError(f"API request failed: {str(e)}")
+            error_msg = f"API request failed: {str(e)}"
+            logger.error(error_msg)
+            raise InturaAPIError(error_msg)
     
     def _check_api_key(self) -> bool:
         """
@@ -251,7 +259,10 @@ class InturaFetch:
 
     
     def build_chat_model(
-        self, experiment_id: str, features: Optional[Dict[str, Any]] = None
+        self, 
+        experiment_id: str, 
+        features: Optional[Dict[str, Any]] = None,
+        messages: Optional[List[ChatMessage]] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Build a chat model based on an experiment configuration.
@@ -259,13 +270,19 @@ class InturaFetch:
         Args:
             experiment_id: ID of the experiment
             features: Features to include in the model
+            messages: Optional list of chat messages for model training
             
         Returns:
             Model configuration or None if the request fails
         """
         logger.debug(f"Building chat model for experiment: {experiment_id}")
         features = features or {}
-        json_data = {"features": features, "experiment_id": experiment_id}
+        messages = messages or []
+        json_data = {
+            "features": features,
+            "experiment_id": experiment_id,
+            "messages": messages
+        }
         
         return self._make_request(
             "POST", "build_chat_model", json_data=json_data
@@ -273,21 +290,28 @@ class InturaFetch:
         
     def inference_chat_model(
         self, 
-            experiment_id: str, 
-            features: Optional[Dict[str, Any]] = None, 
-            messages: List[Dict[str, str]] = None,
-            session_id: Optional[str] = None, 
-            max_inferences: int = 1
+        experiment_id: str, 
+        features: Optional[Dict[str, Any]] = None, 
+        messages: Optional[List[ChatMessage]] = None,
+        session_id: Optional[str] = None, 
+        max_inferences: int = 1,
+        latency_threshold: int = 30,
+        max_timeout: int = 120
     ) -> Optional[Dict[str, Any]]:
         """
-        Build a chat model based on an experiment configuration.
+        Perform inference using a chat model.
         
         Args:
             experiment_id: ID of the experiment
-            features: Features to include in the model
+            features: Features to include in the inference
+            messages: List of chat messages for inference
+            session_id: Optional session ID for tracking
+            max_inferences: Maximum number of inferences to perform
+            latency_threshold: Maximum allowed latency in seconds
+            max_timeout: Maximum timeout in seconds
             
         Returns:
-            Model configuration or None if the request fails
+            Inference results or None if the request fails
         """
         logger.debug(f"Invoking chat model for experiment: {experiment_id}")
         features = features or {}
@@ -296,7 +320,9 @@ class InturaFetch:
             "experiment_id": experiment_id, 
             "messages": messages, 
             "session_id": session_id,
-            "max_inferences": max_inferences
+            "max_inferences": max_inferences,
+            "latency_threshold": latency_threshold,
+            "max_timeout": max_timeout
         }
         
         return self._make_request(
@@ -369,16 +395,12 @@ class InturaFetch:
         Returns:
             True on success, False on failure
         """
-        # NOTE: The original code returns True directly, preserved here
-        logger.debug("Logging chat usage (disabled)")
-        return True
-        
-        # This is the implementation if we want to enable it:
-        # return self._track_event(
-        #     event_name="CHAT_MODEL_USAGE",
-        #     event_value=values,
-        #     reward_category="CHAT_USAGE"
-        # )
+        logger.debug("Logging chat usage")
+        return self._track_event(
+            event_name="CHAT_MODEL_USAGE",
+            event_value=values,
+            reward_category="CHAT_USAGE"
+        )
     
     def insert_chat_output(self, values: Any) -> bool:
         """
