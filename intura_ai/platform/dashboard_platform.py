@@ -68,6 +68,14 @@ class DashboardPlatform:
             
             # Convert model to JSON and send to API
             experiment_json = experiment.model_dump_json()
+            available_models = self._intura_api.get_list_models()
+            available_providers = [model['provider'] for model in available_models]
+            available_model_names = [model['model'] for model in available_models]
+            for treatment in experiment.treatment_list:
+                if treatment.treatment_model_name not in available_model_names:
+                    raise DashboardError(f"Model {treatment.treatment_model_name} not found. Please use .list_models() to see available models.")
+                if treatment.treatment_model_provider not in available_providers:
+                    raise DashboardError(f"Provider {treatment.treatment_model_provider} not found. Please use .list_models() to see available providers.")
             experiment_id = self._intura_api.insert_experiment(experiment_json)
             
             if not experiment_id:

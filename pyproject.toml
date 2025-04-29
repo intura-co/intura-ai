@@ -43,13 +43,15 @@ all-langchain-partner = [
     "langchain-google-genai",
     "langchain-deepseek",
     "langchain-anthropic",
-    "langchain-openai"
+    "langchain-openai",
+    "langchain-xai"
 ]
 together = ["langchain-together"]
 google-genai = ["langchain-google-genai"]
 deepseek = ["langchain-deepseek"]
 anthropic = ["langchain-anthropic"]
 openai = ["langchain-openai"]
+xai = ["langchain-xai"]
 
 [project.urls]
 Homepage = "https://github.com/intura-co/intura-ai"

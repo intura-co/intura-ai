@@ -62,8 +62,8 @@ class InturaFetch:
         # Get API key from parameter or environment
         api_key = intura_api_key or os.environ.get("INTURA_API_KEY")
         if not api_key:
-            logger.error("Intura API Key not found")
-            raise ValueError("Intura API Key not found")
+            logger.error("API key not found. Please provide an API key or set the INTURA_API_KEY environment variable.")
+            raise ValueError("API key not found. Please provide an API key or set the INTURA_API_KEY environment variable.")
         
         # Configure component-specific logging if verbose is specified
         if verbose:
@@ -75,10 +75,10 @@ class InturaFetch:
         
         # Validate API key
         if not self._check_api_key():
-            logger.error("Invalid Intura API Key")
-            raise ValueError("Invalid Intura API Key")
+            logger.error("Invalid API key. Please verify your API key and try again.")
+            raise ValueError("Invalid API key. Please verify your API key and try again.")
             
-        logger.debug("InturaFetch initialized successfully")
+        logger.debug("Intura API client initialized successfully")
     
     def _create_headers(self, api_key: str) -> Dict[str, str]:
         """
@@ -111,7 +111,7 @@ class InturaFetch:
             ValueError: If the endpoint key is not found in ENDPOINTS
         """
         if endpoint_key not in self.ENDPOINTS:
-            raise ValueError(f"Unknown endpoint: {endpoint_key}")
+            raise ValueError(f"Invalid endpoint: {endpoint_key}. Please check the available endpoints.")
             
         return "/".join([self._api_host, self._api_version, self.ENDPOINTS[endpoint_key]])
     
@@ -148,17 +148,17 @@ class InturaFetch:
         })
         
         try:
-            logger.debug(f"Making {method} request to {url}")
+            logger.debug(f"Sending {method} request to {url}")
             
             if method.upper() == "GET":
                 response = requests.get(url, params=params, headers=self._headers)
             elif method.upper() == "POST":
                 response = requests.post(url, params=params, data=data, json=json_data, headers=self._headers)
             else:
-                raise ValueError(f"Unsupported HTTP method: {method}")
+                raise ValueError(f"Unsupported HTTP method: {method}. Please use GET or POST.")
             
             # Log response code
-            logger.debug(f"Response status code: {response.status_code}")
+            logger.debug(f"Received response with status code: {response.status_code}")
             
             if response.status_code == 200:
                 # For endpoints that return JSON
@@ -167,7 +167,7 @@ class InturaFetch:
                 # For endpoints that return plain text or other formats
                 return {"status": "success", "code": response.status_code}
             else:
-                error_msg = f"API request failed: {response.status_code} - {response.text[:100]}"
+                error_msg = f"API request failed with status {response.status_code}: {response.text[:100]}"
                 logger.warning(error_msg)
                 return None
                 
@@ -194,7 +194,7 @@ class InturaFetch:
         Returns:
             List of experiments or None if the request fails
         """
-        logger.debug("Fetching list of experiments")
+        logger.debug("Retrieving list of experiments")
         response = self._make_request("GET", "experiment")
         return response.get("data") if response else None
     
@@ -212,7 +212,7 @@ class InturaFetch:
         response = self._make_request("POST", "experiment", data=payload)
         if response and "data" in response and "experiment_id" in response["data"]:
             experiment_id = response["data"]["experiment_id"]
-            logger.info(f"Created experiment with ID: {experiment_id}")
+            logger.info(f"Successfully created experiment with ID: {experiment_id}")
             return experiment_id
         return None
     
@@ -223,7 +223,7 @@ class InturaFetch:
         Returns:
             List of models or None if the request fails
         """
-        logger.debug("Fetching list of models")
+        logger.debug("Retrieving list of available models")
         response = self._make_request("GET", "list_models")
         return response.get("data") if response else None
     
@@ -252,7 +252,7 @@ class InturaFetch:
         Returns:
             Experiment details or None if the request fails
         """
-        logger.debug(f"Fetching details for experiment: {experiment_id}")
+        logger.debug(f"Retrieving details for experiment: {experiment_id}")
         params = {"experiment_id": experiment_id}
         response = self._make_request("GET", "experiment_detail", params=params)
         return response.get("data") if response else None
@@ -313,7 +313,7 @@ class InturaFetch:
         Returns:
             Inference results or None if the request fails
         """
-        logger.debug(f"Invoking chat model for experiment: {experiment_id}")
+        logger.debug(f"Performing inference with chat model for experiment: {experiment_id}")
         features = features or {}
         json_data = {
             "features": features, 
@@ -341,11 +341,11 @@ class InturaFetch:
         """
         try:
             session_id = payload.get("session_id", "unknown")
-            logger.debug(f"Logging inference for session: {session_id}")
+            logger.debug(f"Logging inference data for session: {session_id}")
             
             return self._make_request("POST", "insert_inference", json_data=payload)
         except Exception as e:
-            logger.error(f"Error logging inference: {str(e)}")
+            logger.error(f"Failed to log inference data: {str(e)}")
             return None
     
     def _track_event(
@@ -380,7 +380,7 @@ class InturaFetch:
             "reward_category": reward_category
         }
         
-        logger.debug(f"Tracking event: {event_name} in category: {reward_category}")
+        logger.debug(f"Tracking event '{event_name}' in category '{reward_category}'")
         response = self._make_request("POST", "track_reward", json_data=request_body)
         
         return response is not None
@@ -395,7 +395,7 @@ class InturaFetch:
         Returns:
             True on success, False on failure
         """
-        logger.debug("Logging chat usage")
+        logger.debug("Logging chat model usage")
         return self._track_event(
             event_name="CHAT_MODEL_USAGE",
             event_value=values,
