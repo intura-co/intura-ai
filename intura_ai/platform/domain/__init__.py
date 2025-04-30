@@ -1,2 +1,2 @@
-from .experiment import ExperimentModel
+from .experiment import ExperimentModel, ExperimentConfigurationModel, ExperimentReward
 from .treatment import ExperimentTreatmentModel

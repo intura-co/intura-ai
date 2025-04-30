@@ -4,7 +4,7 @@ from typing import List, Optional
 from .treatment import ExperimentTreatmentModel
 
 class ExperimentConfigurationModel(BaseModel):
-    explore_exploit_ratio: float = Field(0.5, description="The explore-exploit ratio for decision-making.")
+    explore_exploit_ratio: float = Field(0.7, description="The explore-exploit ratio for decision-making.")
     
 class ExperimentReward(BaseModel):
     key: uuid.UUID = Field(default_factory=uuid.uuid4, description="Unique identifier.")
