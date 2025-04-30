@@ -40,7 +40,8 @@ class UsageTrackCallback(BaseCallbackHandler):
         treatment_name: str,
         session_id: str,
         model_name: str,
-        verbose: bool = False
+        verbose: bool = False,
+        intura_api_host: Optional[str] = None
     ):
         """
         Initialize the UsageTrackCallback.
@@ -66,7 +67,8 @@ class UsageTrackCallback(BaseCallbackHandler):
         )
         
         # Initialize API client
-        self._intura_api = InturaFetch(intura_api_key)
+        
+        self._intura_api = InturaFetch(intura_api_key=intura_api_key, intura_api_host=intura_api_host)
         
         # Tracking variables
         self._start_time: float = 0.0

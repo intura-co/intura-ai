@@ -34,17 +34,19 @@ class ChatModelExperiment:
     Uses lazy loading to avoid unnecessary dependency installations.
     """
     
-    def __init__(self, intura_api_key: Optional[str] = None, verbose: bool = False):
+    def __init__(self, intura_api_key: Optional[str] = None, intura_api_host: Optional[str] = None, verbose: bool = False):
         """
         Initialize a new chat model experiment.
         
         Args:
             intura_api_key: API key for Intura services. If None, reads from INTURA_API_KEY env var
+            intura_api_host: API host for Intura services. If None, reads from INTURA_API_HOST env var
             verbose: Enable verbose logging for this component
         """
         self._chosen_model = None
         self._intura_api_key = intura_api_key or os.environ.get("INTURA_API_KEY")
-        self._intura_api = InturaFetch(self._intura_api_key)
+        self._intura_api_host = intura_api_host or os.environ.get("INTURA_API_HOST")
+        self._intura_api = InturaFetch(intura_api_key=self._intura_api_key, intura_api_host=self._intura_api_host, verbose=verbose)
         self._data = []
         self._model_cache = {}  # Cache for imported model classes
             
@@ -216,6 +218,7 @@ class ChatModelExperiment:
         """
         return UsageTrackCallback(
             intura_api_key=self._intura_api_key,
+            intura_api_host=self._intura_api_host,
             experiment_id=experiment_id,
             treatment_id=treatment_id,
             treatment_name=treatment_name,

@@ -23,6 +23,7 @@ class DashboardPlatform:
     def __init__(
         self, 
         intura_api_key: Optional[str] = None, 
+        intura_api_host: Optional[str] = None,
         verbose: bool = False
     ):
         """
@@ -30,6 +31,7 @@ class DashboardPlatform:
         
         Args:
             intura_api_key: API key for Intura services (falls back to INTURA_API_KEY env var)
+            intura_api_host: API host for Intura services (falls back to INTURA_API_HOST env var)
             verbose: Enable verbose logging for this component
         """
         # Try to get API key from parameter or environment
@@ -46,7 +48,7 @@ class DashboardPlatform:
             set_component_level("dashboard", "debug")
             
         # Initialize API client with same verbosity setting
-        self._intura_api = InturaFetch(api_key, verbose=verbose)
+        self._intura_api = InturaFetch(intura_api_key=self._intura_api_key , intura_api_host=intura_api_host, verbose=verbose)
         logger.debug("DashboardPlatform initialized successfully")
     
     def create_experiment(self, experiment: ExperimentModel) -> Optional[str]:

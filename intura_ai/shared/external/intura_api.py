@@ -48,7 +48,7 @@ class InturaFetch:
         "track_reward": "ai/track"
     }
     
-    def __init__(self, intura_api_key: Optional[str] = None, verbose: bool = False):
+    def __init__(self, intura_api_key: Optional[str] = None, intura_api_host: Optional[str] = None, verbose: bool = False):
         """
         Initialize the Intura API client.
         
@@ -56,7 +56,7 @@ class InturaFetch:
             intura_api_key: API key for authentication (falls back to INTURA_API_KEY env var)
             verbose: Enable verbose logging for this component
         """
-        self._api_host = INTURA_API_HOST
+        self._api_host = intura_api_host or INTURA_API_HOST
         self._api_version = "v1"
         
         # Get API key from parameter or environment
