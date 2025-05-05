@@ -409,6 +409,7 @@ class ChatModelExperiment:
         self,
         experiment_id: str,
         treatment_id: Optional[str],
+        request_id: Optional[str],
         session_id: Optional[str],
         features: Optional[Dict[str, Any]],
         messages: Optional[List[Dict[str, str]]],
@@ -418,6 +419,7 @@ class ChatModelExperiment:
         return ExperimentConfig(
             experiment_id=experiment_id,
             treatment_id=treatment_id,
+            request_id=request_id or str(uuid4()),
             session_id=session_id or str(uuid4()),
             features=features or {},
             messages=messages or [],
