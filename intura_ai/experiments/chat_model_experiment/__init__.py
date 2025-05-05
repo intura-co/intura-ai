@@ -132,6 +132,7 @@ class ChatModelFactory:
             treatment_name=model_config.treatment_name,
             session_id=experiment_config.session_id,
             model_name=model_name,
+            model_provider=model_config.provider,
             request_id=experiment_config.request_id
         )
         

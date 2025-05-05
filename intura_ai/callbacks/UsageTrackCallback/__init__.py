@@ -23,7 +23,7 @@ class CallbackConfig:
     treatment_name: str
     session_id: str
     model_name: str
-
+    model_provider: str
 
 class UsageTrackCallback(BaseCallbackHandler):
     """
@@ -41,6 +41,7 @@ class UsageTrackCallback(BaseCallbackHandler):
         treatment_name: str,
         session_id: str,
         model_name: str,
+        model_provider: str,
         request_id: str,
         verbose: bool = False
     ):
@@ -53,6 +54,9 @@ class UsageTrackCallback(BaseCallbackHandler):
             treatment_id: ID of the treatment
             treatment_name: Name of the treatment
             session_id: Session ID for tracking
+            model_name: Name of the model
+            model_provider: Provider of the model
+            request_id: ID of the request
             verbose: Enable verbose logging for this component
         """
         super().__init__()
@@ -65,7 +69,8 @@ class UsageTrackCallback(BaseCallbackHandler):
             treatment_id=treatment_id,
             treatment_name=treatment_name,
             session_id=session_id,
-            model_name=model_name
+            model_name=model_name,
+            model_provider=model_provider
         )
         
         # Initialize API client
@@ -194,6 +199,7 @@ class UsageTrackCallback(BaseCallbackHandler):
                     "treatment_name": self._config.treatment_name,
                     "prediction_id": prediction_id,
                     "model_name": self._config.model_name,
+                    "model_provider": self._config.model_provider,
                     "predictions": {
                         "result": result,
                         "cost": {
