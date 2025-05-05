@@ -295,6 +295,7 @@ class InturaFetch:
     def inference_chat_model(
         self, 
         experiment_id: str, 
+        treatment_id: Optional[str] = None,
         features: Optional[Dict[str, Any]] = None, 
         messages: Optional[List[ChatMessage]] = None,
         session_id: Optional[str] = None, 
@@ -307,6 +308,7 @@ class InturaFetch:
         
         Args:
             experiment_id: ID of the experiment
+            treatment_id: ID of the treatment
             features: Features to include in the inference
             messages: List of chat messages for inference
             session_id: Optional session ID for tracking
@@ -321,7 +323,8 @@ class InturaFetch:
         features = features or {}
         json_data = {
             "features": features, 
-            "experiment_id": experiment_id, 
+            "experiment_id": experiment_id,
+            "treatment_id": treatment_id,
             "messages": messages, 
             "session_id": session_id,
             "max_inferences": max_inferences,
