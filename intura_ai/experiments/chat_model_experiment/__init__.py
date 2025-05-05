@@ -130,7 +130,8 @@ class ChatModelFactory:
             treatment_id=model_config.treatment_id,
             treatment_name=model_config.treatment_name,
             session_id=experiment_config.session_id,
-            model_name=model_name
+            model_name=model_name,
+            request_id=experiment_config.request_id
         )
         
         metadata = {
@@ -214,6 +215,7 @@ class ChatModelExperiment:
         experiment_id: str,
         treatment_id: Optional[str] = None,
         session_id: Optional[str] = None,
+        request_id: Optional[str] = None,
         features: Optional[Dict[str, Any]] = None,
         max_inferences: int = 1,
         latency_threshold: int = 30,
@@ -223,7 +225,7 @@ class ChatModelExperiment:
     ) -> Union[Dict[str, Any], None]:
         """Run inference based on experiment configuration."""
         config = self._prepare_invoke_config(
-            experiment_id, treatment_id, session_id, features,
+            experiment_id, treatment_id, session_id, request_id, features,
             messages, verbose
         )
         
@@ -245,6 +247,7 @@ class ChatModelExperiment:
             resp = self._intura_api.inference_chat_model(
                 config.experiment_id,
                 treatment_id=config.treatment_id,
+                request_id=config.request_id,
                 features=config.features,
                 messages=config.messages,
                 max_inferences=max_inferences,
@@ -294,6 +297,7 @@ class ChatModelExperiment:
         self,
         experiment_id: str,
         treatment_id: Optional[str] = None,
+        request_id: Optional[str] = None,
         session_id: Optional[str] = None,
         features: Optional[Dict[str, Any]] = None,
         max_models: int = 1,
@@ -305,9 +309,9 @@ class ChatModelExperiment:
     ) -> Union[ModelResult, List[ModelResult], None]:
         """Build chat models based on experiment configuration."""
         config = self._prepare_build_config(
-            experiment_id, treatment_id, session_id, features,
+            experiment_id, treatment_id, session_id, request_id, features, 
             max_models, verbose, messages, api_key,
-            api_key_mapping, additional_model_configs
+            api_key_mapping, additional_model_configs,
         )
         
         if config.messages:
@@ -329,7 +333,8 @@ class ChatModelExperiment:
                 config.experiment_id,
                 treatment_id=config.treatment_id,
                 features=config.features,
-                messages=config.messages
+                messages=config.messages,
+                request_id=config.request_id,
             )
             
             if not resp:
@@ -427,6 +432,7 @@ class ChatModelExperiment:
         self,
         experiment_id: str,
         treatment_id: Optional[str],
+        request_id: Optional[str],
         session_id: Optional[str],
         features: Optional[Dict[str, Any]],
         max_models: int,
@@ -441,6 +447,7 @@ class ChatModelExperiment:
             experiment_id=experiment_id,
             treatment_id=treatment_id,
             session_id=session_id or str(uuid4()),
+            request_id=request_id or str(uuid4()),
             features=features or {},
             messages=messages or [],
             max_models=max_models,

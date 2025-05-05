@@ -36,10 +36,11 @@ class UsageTrackCallback(BaseCallbackHandler):
         self, 
         intura_api_key: str,
         experiment_id: str,
-        treatment_id: str,
+        treatment_id: str,  
         treatment_name: str,
         session_id: str,
         model_name: str,
+        request_id: str,
         verbose: bool = False
     ):
         """
@@ -58,6 +59,7 @@ class UsageTrackCallback(BaseCallbackHandler):
         # Store configuration
         self._config = CallbackConfig(
             intura_api_key=intura_api_key,
+            request_id=request_id,
             experiment_id=experiment_id,
             treatment_id=treatment_id,
             treatment_name=treatment_name,
@@ -181,6 +183,7 @@ class UsageTrackCallback(BaseCallbackHandler):
         """
         return {
             "session_id": self._config.session_id,
+            "request_id": self._config.request_id,
             "experiment_id": self._config.experiment_id,
             "content": self._input_chat,
             "latency": latency,

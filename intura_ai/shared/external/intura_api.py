@@ -262,6 +262,7 @@ class InturaFetch:
         self, 
         experiment_id: str, 
         treatment_id: Optional[str] = None,
+        request_id: Optional[str] = None,
         features: Optional[Dict[str, Any]] = None,
         messages: Optional[List[ChatMessage]] = None
     ) -> Optional[Dict[str, Any]]:
@@ -271,6 +272,7 @@ class InturaFetch:
         Args:
             experiment_id: ID of the experiment
             treatment_id: ID of the treatment
+            request_id: ID of the request
             features: Features to include in the model
             messages: Optional list of chat messages for model training
             
@@ -284,7 +286,8 @@ class InturaFetch:
         json_data = {
             "experiment_id": experiment_id,
             "treatment_id": treatment_id,
-            "features": features,
+            "request_id": request_id,
+            "features": features,   
             "messages": messages,
         }
         
@@ -296,6 +299,7 @@ class InturaFetch:
         self, 
         experiment_id: str, 
         treatment_id: Optional[str] = None,
+        request_id: Optional[str] = None,
         features: Optional[Dict[str, Any]] = None, 
         messages: Optional[List[ChatMessage]] = None,
         session_id: Optional[str] = None, 
@@ -309,6 +313,7 @@ class InturaFetch:
         Args:
             experiment_id: ID of the experiment
             treatment_id: ID of the treatment
+            request_id: ID of the request
             features: Features to include in the inference
             messages: List of chat messages for inference
             session_id: Optional session ID for tracking
@@ -325,6 +330,7 @@ class InturaFetch:
             "features": features, 
             "experiment_id": experiment_id,
             "treatment_id": treatment_id,
+            "request_id": request_id,
             "messages": messages, 
             "session_id": session_id,
             "max_inferences": max_inferences,
