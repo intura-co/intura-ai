@@ -18,6 +18,7 @@ class CallbackConfig:
     """Configuration for the UsageTrackCallback."""
     intura_api_key: str
     experiment_id: str
+    request_id: str
     treatment_id: str
     treatment_name: str
     session_id: str
