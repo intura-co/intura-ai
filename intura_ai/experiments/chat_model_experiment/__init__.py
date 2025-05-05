@@ -38,6 +38,7 @@ class ExperimentConfig:
     experiment_id: str
     treatment_id: Optional[str]
     session_id: str
+    request_id: Optional[str]
     features: Dict[str, Any]
     messages: List[Dict[str, str]]
     max_models: int
