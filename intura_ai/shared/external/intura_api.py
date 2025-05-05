@@ -261,6 +261,7 @@ class InturaFetch:
     def build_chat_model(
         self, 
         experiment_id: str, 
+        treatment_id: Optional[str] = None,
         features: Optional[Dict[str, Any]] = None,
         messages: Optional[List[ChatMessage]] = None
     ) -> Optional[Dict[str, Any]]:
@@ -269,6 +270,7 @@ class InturaFetch:
         
         Args:
             experiment_id: ID of the experiment
+            treatment_id: ID of the treatment
             features: Features to include in the model
             messages: Optional list of chat messages for model training
             
@@ -278,10 +280,12 @@ class InturaFetch:
         logger.debug(f"Building chat model for experiment: {experiment_id}")
         features = features or {}
         messages = messages or []
+        
         json_data = {
-            "features": features,
             "experiment_id": experiment_id,
-            "messages": messages
+            "treatment_id": treatment_id,
+            "features": features,
+            "messages": messages,
         }
         
         return self._make_request(
