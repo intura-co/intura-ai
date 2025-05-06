@@ -289,6 +289,7 @@ class ChatModelExperiment:
                 name=item["treatment_name"],
                 response_metadata={
                     "model_name": item["model_name"],
+                    "model_provider": item["model_provider"],
                     "treatment_id": item["treatment_id"],
                     "treatment_name": item["treatment_name"],
                     "latency": item["predictions"]["latency"]
