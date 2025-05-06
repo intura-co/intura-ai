@@ -5,7 +5,7 @@ import importlib
 from functools import lru_cache
 from dataclasses import dataclass
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 
 from intura_ai.shared.external.intura_api import InturaFetch
 from intura_ai.callbacks import UsageTrackCallback
@@ -105,7 +105,10 @@ class ChatModelFactory:
                 chat_prompts.append(HumanMessage(content=content))
             elif role == "ai":
                 chat_prompts.append(AIMessage(content=content))
-        
+            elif role == "system":
+                chat_prompts.append(SystemMessage(content=content))
+            elif role == "tool":
+                chat_prompts.append(ToolMessage(content=content))
         return ChatPromptTemplate.from_messages(chat_prompts)
     
     def _prepare_model_config(
