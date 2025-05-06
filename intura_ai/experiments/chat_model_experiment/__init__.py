@@ -144,7 +144,8 @@ class ChatModelFactory:
             "treatment_id": model_config.treatment_id,
             "treatment_name": model_config.treatment_name,
             "session_id": experiment_config.session_id,
-            "model_name": model_name
+            "model_name": model_name,
+            "model_provider": model_config.provider
         }
         
         return {
