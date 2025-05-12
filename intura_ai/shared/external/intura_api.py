@@ -4,7 +4,7 @@ import requests
 from datetime import datetime
 from typing import Dict, Any, Optional, Union, List, TypedDict
 from uuid import uuid4
-
+from intura_ai import __version__
 from intura_ai.shared.variables.api_host import INTURA_API_HOST
 from intura_ai.shared.utils.logging import get_component_logger
 
@@ -35,13 +35,14 @@ class InturaFetch:
         "validate_experiment": "external/validate-experiment",
         
         # Inference and logging
-        "insert_inference": "external/insert/inference",
+        "insert_inference": "reward/insert/inference",
         
         # Experiment management
-        "experiment": "experiment",
-        "list_models": "experiment/models",
-        "experiment_detail": "experiment/detail",
-        "build_chat_model": "experiment/build/chat",
+        "create_experiment": "experiment/create",
+        "list_models": "experiment/models/list",
+        "list_experiment": "experiment/list",
+        "experiment_detail": "experiment/{experiment_id}/detail",
+        "build_chat_model": "ai/build/chat",
         "invoke_chat_model": "experiment/inference/chat",
         
         # Tracking and rewards
@@ -71,13 +72,7 @@ class InturaFetch:
             set_component_level("intura_api", "debug")
         
         # Initialize headers
-        self._headers = self._create_headers(api_key)
-        
-        # Validate API key
-        if not self._check_api_key():
-            logger.error("Invalid API key. Please verify your API key and try again.")
-            raise ValueError("Invalid API key. Please verify your API key and try again.")
-            
+        self._headers = self._create_headers(api_key)    
         logger.debug("Intura API client initialized successfully")
     
     def _create_headers(self, api_key: str) -> Dict[str, str]:
@@ -94,10 +89,12 @@ class InturaFetch:
             'x-request-id': str(uuid4()),
             'x-timestamp': str(int(datetime.now().timestamp() * 1000)),
             'x-api-key': api_key,
+            'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json',
+            'source': f'Python;intura-ai;{__version__}'
         }
     
-    def _get_endpoint_url(self, endpoint_key: str) -> str:
+    def _get_endpoint_url(self, endpoint_key: str, params: Optional[Dict[str, Any]] = None) -> str:
         """
         Build the full URL for an API endpoint.
         
@@ -112,8 +109,11 @@ class InturaFetch:
         """
         if endpoint_key not in self.ENDPOINTS:
             raise ValueError(f"Invalid endpoint: {endpoint_key}. Please check the available endpoints.")
-            
-        return "/".join([self._api_host, self._api_version, self.ENDPOINTS[endpoint_key]])
+        
+        if endpoint_key in ["experiment_detail"]:
+            return "/".join([self._api_host, self._api_version, self.ENDPOINTS[endpoint_key].format(experiment_id=params.get("experiment_id"))])
+        else:
+            return "/".join([self._api_host, self._api_version, self.ENDPOINTS[endpoint_key]])
     
     def _make_request(
         self, 
@@ -121,7 +121,7 @@ class InturaFetch:
         endpoint_key: str, 
         params: Optional[Dict[str, Any]] = None, 
         data: Optional[Union[Dict[str, Any], str]] = None,
-        json_data: Optional[Dict[str, Any]] = None
+        json_data: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Make an HTTP request to the Intura API.
@@ -139,7 +139,7 @@ class InturaFetch:
         Raises:
             InturaAPIError: If the API request fails
         """
-        url = self._get_endpoint_url(endpoint_key)
+        url = self._get_endpoint_url(endpoint_key, params)
         
         # Update request ID and timestamp for each request
         self._headers.update({
@@ -195,7 +195,7 @@ class InturaFetch:
             List of experiments or None if the request fails
         """
         logger.debug("Retrieving list of experiments")
-        response = self._make_request("GET", "experiment")
+        response = self._make_request("GET", "list_experiment")
         return response.get("data") if response else None
     
     def insert_experiment(self, payload: Union[Dict[str, Any], str]) -> Optional[str]:
@@ -209,7 +209,7 @@ class InturaFetch:
             Experiment ID on success, None on failure
         """
         logger.debug("Creating new experiment")
-        response = self._make_request("POST", "experiment", data=payload)
+        response = self._make_request("POST", "create_experiment", data=payload)
         if response and "data" in response and "experiment_id" in response["data"]:
             experiment_id = response["data"]["experiment_id"]
             logger.info(f"Successfully created experiment with ID: {experiment_id}")
@@ -290,6 +290,7 @@ class InturaFetch:
             "features": features,   
             "messages": messages,
         }
+        
         
         return self._make_request(
             "POST", "build_chat_model", json_data=json_data

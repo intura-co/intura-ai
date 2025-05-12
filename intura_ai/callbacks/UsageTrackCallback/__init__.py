@@ -1,7 +1,7 @@
 import time
 from typing import Any, Dict, List, Union, Optional
 from dataclasses import dataclass
-
+from intura_ai import __version__
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages.base import BaseMessage
 from langchain_core.outputs.llm_result import LLMResult
@@ -151,6 +151,7 @@ class UsageTrackCallback(BaseCallbackHandler):
                     
                     # Prepare payload for API
                     payload = self._create_log_payload(
+                        
                         prediction_id=message_id,
                         result=message_content,
                         input_tokens=input_tokens,
@@ -193,29 +194,29 @@ class UsageTrackCallback(BaseCallbackHandler):
             "experiment_id": self._config.experiment_id,
             "content": self._input_chat,
             "latency": latency,
-            "result": [
-                {
-                    "treatment_id": self._config.treatment_id,
-                    "treatment_name": self._config.treatment_name,
-                    "prediction_id": prediction_id,
-                    "model_name": self._config.model_name,
-                    "model_provider": self._config.model_provider,
-                    "predictions": {
-                        "result": result,
-                        "cost": {
-                            "total_tokens": input_tokens + output_tokens,
-                            "output_tokens": output_tokens,
-                            "input_tokens": input_tokens,
-                            "cached_tokens": cached_tokens
-                        },
-                        "latency": latency
+            "result": {
+                "treatment_id": self._config.treatment_id,
+                "treatment_name": self._config.treatment_name,
+                "prediction_id": prediction_id,
+                "model_name": self._config.model_name,
+                "model_provider": self._config.model_provider,
+                "predictions": {
+                    "result": result,
+                    "cost": {
+                        "total_tokens": input_tokens + output_tokens,
+                        "output_tokens": output_tokens,
+                        "input_tokens": input_tokens,
+                        "cached_tokens": cached_tokens
                     },
-                    "prediction_attribute": {
-                        "source": "SDK",
-                        "package_name": "intura-ai"
-                    }
+                    "latency": latency
+                },
+                "prediction_attribute": {
+                    "source": "SDK",
+                    "package_name": "intura-ai",
+                    "version": __version__
                 }
-            ]
+            }
+            
         }
     
     def _log_to_api(self, payload: Dict[str, Any]) -> None:

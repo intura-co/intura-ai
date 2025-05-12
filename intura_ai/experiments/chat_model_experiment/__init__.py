@@ -1,25 +1,21 @@
 import os
 from uuid import uuid4
-from typing import Dict, List, Tuple, Optional, Any, Type, Union, TypeVar, Callable, Protocol
+from typing import Dict, List, Tuple, Optional, Any, Type, Union, TypeVar, Protocol
 import importlib
 from functools import lru_cache
 from dataclasses import dataclass
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
-
+from langchain_openai import ChatOpenAI
+from intura_ai import __version__
 from intura_ai.shared.external.intura_api import InturaFetch
 from intura_ai.callbacks import UsageTrackCallback
 from intura_ai.shared.utils.logging import get_component_logger, set_component_level
+from intura_ai.shared.variables.api_host import INTURA_API_HOST
 
 # Type definitions
 ModelClass = TypeVar('ModelClass')
 ModelResult = Tuple[Any, ChatPromptTemplate]
-
-@dataclass
-class Message:
-    """Schema for chat messages."""
-    role: str
-    content: str
 
 @dataclass
 class ModelConfig:
@@ -96,19 +92,13 @@ class ChatModelFactory:
     
     def _create_chat_template(self, system_prompt: str, messages: List[Dict[str, str]]) -> ChatPromptTemplate:
         """Create a chat template."""
-        chat_prompts = [SystemMessage(content=system_prompt)]
-        
-        for message in messages:
-            role = message.get("role", "")
-            content = message.get("content", "")
-            if role == "human":
-                chat_prompts.append(HumanMessage(content=content))
-            elif role == "ai":
-                chat_prompts.append(AIMessage(content=content))
-            elif role == "system":
-                chat_prompts.append(SystemMessage(content=content))
-            elif role == "tool":
-                chat_prompts.append(ToolMessage(content=content))
+        chat_prompts = [
+            {
+                "role": "system",
+                "content": system_prompt
+            },
+            *messages
+        ]
         return ChatPromptTemplate.from_messages(chat_prompts)
     
     def _prepare_model_config(
@@ -155,32 +145,6 @@ class ChatModelFactory:
             **(experiment_config.additional_model_configs or {})
         }
 
-class MessageValidator:
-    """Validator for chat messages."""
-    
-    @staticmethod
-    def validate(messages: List[Dict[str, str]]) -> None:
-        """Validate chat messages."""
-        if not messages:
-            raise ValueError("Messages list cannot be empty")
-        
-        if not any(message.get("role") == "human" for message in messages):
-            raise ValueError("At least one message with role='human' is required")
-        
-        for i, message in enumerate(messages):
-            keys = set(message.keys())
-            if keys != {"role", "content"}:
-                extra_keys = keys - {"role", "content"}
-                missing_keys = {"role", "content"} - keys
-                
-                error_parts = []
-                if extra_keys:
-                    error_parts.append(f"extra keys: {', '.join(extra_keys)}")
-                if missing_keys:
-                    error_parts.append(f"missing keys: {', '.join(missing_keys)}")
-                
-                raise ValueError(f"Message at index {i} has invalid schema ({', '.join(error_parts)})")
-
 class ChatModelExperiment:
     """Manages experiments with different chat models."""
     
@@ -223,24 +187,15 @@ class ChatModelExperiment:
         session_id: Optional[str] = None,
         request_id: Optional[str] = None,
         features: Optional[Dict[str, Any]] = None,
-        max_inferences: int = 1,
-        latency_threshold: int = 30,
-        max_timeout: int = 120,
         verbose: bool = False,
         messages: List[Dict[str, str]] = None,
     ) -> Union[Dict[str, Any], None]:
         """Run inference based on experiment configuration."""
         config = self._prepare_invoke_config(
-            experiment_id, treatment_id, session_id, request_id, features,
+            experiment_id, treatment_id, session_id, 
+            request_id, features,
             messages, verbose
         )
-        
-        if config.messages:
-            try:
-                MessageValidator.validate(config.messages)
-            except ValueError as e:
-                self._logger.error(f"Invalid messages format: {str(e)}")
-                return None
         
         original_level = None
         if config.verbose:
@@ -249,24 +204,21 @@ class ChatModelExperiment:
         try:
             self._logger.info(f"Running invoke for experiment: {config.experiment_id}")
             self._logger.debug(f"Features: {config.features}, Session ID: {config.session_id}")
-            
-            resp = self._intura_api.inference_chat_model(
-                config.experiment_id,
-                treatment_id=config.treatment_id,
-                request_id=config.request_id,
-                features=config.features,
-                messages=config.messages,
-                max_inferences=max_inferences,
-                session_id=config.session_id,
-                latency_threshold=latency_threshold,
-                max_timeout=max_timeout
+            model = ChatOpenAI(
+                model=config.experiment_id,
+                api_key=self._intura_api_key,
+                base_url=f"{INTURA_API_HOST}/v1/ai",
+                extra_headers={
+                    "source": f"Python;intura-ai;{__version__}"
+                },
+                extra_body={
+                    "features": config.features,
+                    "session_id": config.session_id,
+                    "request_id": config.request_id,
+                    "treatment_id": config.treatment_id
+                }
             )
-            
-            if not resp:
-                self._logger.warning(f"Failed to run invoke for experiment: {config.experiment_id}")
-                return None
-            
-            return self._process_inference_results(resp["data"], max_inferences)
+            return model.invoke(config.messages)
             
         except Exception as e:
             self._logger.error(f"Error in invoke: {str(e)}", exc_info=True)
@@ -275,30 +227,6 @@ class ChatModelExperiment:
         finally:
             if config.verbose and original_level is not None:
                 set_component_level(self.COMPONENT_NAME, original_level)
-    
-    def _process_inference_results(
-        self, 
-        data: List[Dict[str, Any]], 
-        max_inferences: int
-    ) -> Union[AIMessage, List[AIMessage]]:
-        """Process inference results."""
-        results = []
-        for item in data:
-            results.append(AIMessage(
-                content=item["predictions"]["content"],
-                id=item["prediction_id"],
-                name=item["treatment_name"],
-                response_metadata={
-                    "model_name": item["model_name"],
-                    "model_provider": item["model_provider"],
-                    "treatment_id": item["treatment_id"],
-                    "treatment_name": item["treatment_name"],
-                    "latency": item["predictions"]["latency"]
-                },
-                usage_metadata=item["predictions"]["usage_metadata"]
-            ))
-        
-        return results[0] if max_inferences == 1 else results
     
     def build(
         self,
@@ -320,13 +248,6 @@ class ChatModelExperiment:
             max_models, verbose, messages, api_key,
             api_key_mapping, additional_model_configs,
         )
-        
-        if config.messages:
-            try:
-                MessageValidator.validate(config.messages)
-            except ValueError as e:
-                self._logger.error(f"Invalid messages format: {str(e)}")
-                return None
         
         original_level = None
         if config.verbose:
