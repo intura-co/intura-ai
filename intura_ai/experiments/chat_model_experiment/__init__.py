@@ -150,11 +150,11 @@ class ChatModelExperiment:
     
     COMPONENT_NAME = "chat_model_experiment"
     
-    def __init__(self, intura_api_key: Optional[str] = None, verbose: bool = False):
+    def __init__(self, intura_api_key: Optional[str] = None, intura_api_host: Optional[str] = None, verbose: bool = False):
         """Initialize a new chat model experiment."""
         self._chosen_model = None
         self._intura_api_key = intura_api_key or os.environ.get("INTURA_API_KEY")
-        self._intura_api = InturaFetch(self._intura_api_key)
+        self._intura_api = InturaFetch(self._intura_api_key, intura_api_host)
         self._data = []
         self._model_factory = ChatModelFactory(self._intura_api_key)
         self._logger = get_component_logger(self.COMPONENT_NAME)
