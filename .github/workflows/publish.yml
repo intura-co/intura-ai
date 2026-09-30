@@ -1,43 +1,75 @@
-name: Publish Python Package
+name: Publish
 
+# Tag-driven. The tag is the source of truth for the version, and the job
+# refuses to publish when it disagrees with `intura_ai/__version__.py` rather
+# than rewriting the file mid-build — a wheel whose version came from somewhere
+# other than the committed source is not reproducible from the tag it claims.
 on:
   push:
     tags:
-      - 'v*'  # Trigger on any tag that starts with 'v'
+      - "v*"
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build twine
-        pip install -e ".[dev]"  # Install your package in development mode with dev dependencies
-    
-    - name: Update version from tag
-      run: |
-        # Extract version from tag (without 'v' prefix)
-        VERSION=${GITHUB_REF#refs/tags/v}
-        # Update version in __version__.py
-        echo "__version__ = \"$VERSION\"" > intura_ai/__version__.py
-        # Display the version for verification
-        echo "Publishing version: $VERSION"
-        
-    - name: Build and check package
-      run: |
-        python -m build
-        twine check dist/*
-    
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --group dev --python ${{ matrix.python-version }}
+
+      - name: Lint
+        run: uv run ruff check intura_ai tests
+
+      - name: Format
+        run: uv run ruff format --check intura_ai tests
+
+      # The whole suite runs against `httpx.MockTransport`. Nothing reaches the
+      # network, no key is needed, and CI is never one outage away from red.
+      # What that cannot prove is that the API still accepts the requests this
+      # package builds; `tests/test_calls.py` pins the paths and field names,
+      # and `make smoke` in intura-ai-api is what checks them against a
+      # deployment.
+      - name: Test
+        run: uv run pytest -q
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      # Trusted publishing. No long-lived PYPI_API_TOKEN to rotate or leak.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Check the tag matches the committed version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          SOURCE="$(uv run --no-project python -c \
+            "import re,pathlib;print(re.search(r'\"(.+)\"',pathlib.Path('intura_ai/__version__.py').read_text()).group(1))")"
+          if [ "$TAG" != "$SOURCE" ]; then
+            echo "::error::tag v$TAG does not match intura_ai/__version__.py ($SOURCE)."
+            echo "Bump the file and re-tag rather than letting the build invent a version."
+            exit 1
+          fi
+          echo "publishing $SOURCE"
+
+      - name: Build
+        run: uv build
+
+      - name: Check metadata
+        run: uvx twine check dist/*
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

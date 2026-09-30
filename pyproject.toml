@@ -1,87 +1,97 @@
-# pyproject.toml (Recommended)
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "intura-ai"  # Replace with your package name
-# We'll use dynamic versioning, see below
+name = "intura-ai"
 dynamic = ["version"]
-authors = [
-    { name = "Intura", email = "developer@intura.co" },
-]
-description = "Intelligent Research and Experimentation AI for LLM experimentation production. ⚠️ This package is in BETA and under active development."
+description = "Python client for the Intura AI API: prompt-injection screening, PII masking, phishing and chat-scam detection, chat intent, KTP/NPWP document checks, and model downloads for self-hosting."
 readme = "README.md"
-requires-python = ">=3.10"
+license = { text = "MIT" }
+requires-python = ">=3.10,<3.14"
+authors = [{ name = "Intura", email = "developer@intura.co" }]
+keywords = [
+    "guardrails",
+    "prompt-injection",
+    "pii",
+    "redaction",
+    "phishing",
+    "fraud-detection",
+    "intent-classification",
+    "kyc",
+    "ktp",
+    "indonesia",
+]
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
-]
-dependencies = [
-    "requests>=2.26.0",
-    "langchain>=0.3.13",
-    "langchain-community>=0.3.13",
-    "pydantic>=2.9.2",
-    "langchain-openai>=0.3.12"
+    "Topic :: Security",
+    "Topic :: Text Processing :: Linguistic",
+    "Natural Language :: Indonesian",
+    "Natural Language :: English",
+    "Typing :: Typed",
 ]
 
-[project.optional-dependencies]
+# One dependency, and it is the HTTP client. There are no extras and no optional
+# runtimes any more: the models run in the service, so nothing here needs ONNX,
+# a tokenizer, OpenCV or 250 MB of weights. A guardrail that has to be installed
+# before it can be evaluated does not get evaluated.
+#
+# httpx rather than requests because both clients come out of one dependency —
+# the async one matters most here, since these calls sit on a request path in
+# front of a model call.
+dependencies = [
+    "httpx>=0.27,<1",
+]
+
+[dependency-groups]
 dev = [
-    "pytest>=7.0.0",
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "mypy>=1.0.0",
-    "flake8>=6.0.0",
-    "build>=0.10.0",
-    "twine>=4.0.0",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.7.0",
 ]
-all-langchain-partner = [
-    "langchain-together",
-    "langchain-google-genai",
-    "langchain-deepseek",
-    "langchain-anthropic",
-    "langchain-openai",
-    "langchain-xai"
-]
-together = ["langchain-together"]
-google-genai = ["langchain-google-genai"]
-deepseek = ["langchain-deepseek"]
-anthropic = ["langchain-anthropic"]
-openai = ["langchain-openai"]
-xai = ["langchain-xai"]
+
+[project.scripts]
+intura-ai = "intura_ai._cli:main"
 
 [project.urls]
-Homepage = "https://github.com/intura-co/intura-ai"
-"Bug Tracker" = "https://github.com/intura-co/intura-ai/issues"
-Documentation = "https://github.com/intura-co/intura-ai/blob/main/README.md"
+Homepage = "https://ai.intura.co"
+Documentation = "https://ai.intura.co/docs"
 Repository = "https://github.com/intura-co/intura-ai"
+"Bug Tracker" = "https://github.com/intura-co/intura-ai/issues"
+Console = "https://ai.intura.co/console"
 
-[tool.setuptools.package-data]
-intura_ai = ["py.typed"]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["intura_ai*"]
-exclude = ["tests*"]
+[tool.hatch.version]
+path = "intura_ai/__version__.py"
 
-[tool.setuptools.dynamic]
-version = {attr = "intura_ai.__version__"}
+[tool.hatch.build.targets.wheel]
+packages = ["intura_ai"]
 
-[tool.black]
-line-length = 88
-target-version = ["py310"]
+[tool.ruff]
+line-length = 100
+target-version = "py310"
 
-[tool.isort]
-profile = "black"
-line_length = 88
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = ["E501", "B008"]
 
-[tool.mypy]
-python_version = "3.10"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+# Every test in this suite runs against `httpx.MockTransport`. Nothing reaches
+# the network, so a fresh clone runs green offline and CI is never one outage
+# away from red — and the assertions are about the request this package builds,
+# which is the part it is responsible for.
+asyncio_mode = "auto"
