@@ -57,7 +57,7 @@ jobs:
         run: |
           TAG="${GITHUB_REF#refs/tags/v}"
           SOURCE="$(uv run --no-project python -c \
-            "import re,pathlib;print(re.search(r'\"(.+)\"',pathlib.Path('intura_ai/__version__.py').read_text()).group(1))")"
+            "import re,pathlib;print(re.search(r'^__version__\s*=\s*\"([^\"]+)\"',pathlib.Path('intura_ai/__version__.py').read_text(),re.M).group(1))")"
           if [ "$TAG" != "$SOURCE" ]; then
             echo "::error::tag v$TAG does not match intura_ai/__version__.py ($SOURCE)."
             echo "Bump the file and re-tag rather than letting the build invent a version."

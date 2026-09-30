@@ -23,4 +23,4 @@ experimentation client, and share no API with either. Both migrations are in the
 README.
 """
 
-__version__ = "v2.1.0"
+__version__ = "2.1.1"
